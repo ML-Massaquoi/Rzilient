@@ -1,0 +1,512 @@
+// Rzilient — FIA IT Asset & Inventory Management System
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  IT_STAFF
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssetStatus {
+  AVAILABLE
+  CHECKED_OUT
+  MAINTENANCE
+  DAMAGED
+  MISSING
+  RETIRED
+  DISPOSED
+}
+
+enum AssetCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  DAMAGED
+  MALFUNCTIONING
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  RETURNED
+  TRANSFERRED
+}
+
+enum AssetTransactionAction {
+  CREATED
+  EDITED
+  IMPORTED
+  CHECKED_OUT
+  RETURNED
+  TRANSFERRED
+  MAINTENANCE_STARTED
+  MAINTENANCE_COMPLETED
+  DAMAGED
+  MARKED_MISSING
+  FOUND
+  RETIRED
+  DISPOSED
+  ARCHIVED
+  RESTORED
+  LOCATION_CHANGED
+  CONDITION_CHANGED
+  STATUS_CHANGED
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  CALIBRATION
+  WARRANTY
+  OTHER
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum StockTransactionType {
+  RECEIVED
+  ISSUED
+  ADJUSTED
+  DAMAGED
+  LOST
+  RETURNED
+}
+
+enum AttachmentKind {
+  ASSET_PHOTO
+  EMPLOYEE_PHOTO
+  DAMAGE_PHOTO
+  MAINTENANCE_REPORT
+  WARRANTY_DOCUMENT
+  PURCHASE_DOCUMENT
+  INVOICE
+  OTHER
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+// ---------------------------------------------------------------------------
+// Identity & organization
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         Role       @default(IT_STAFF)
+  status       UserStatus @default(ACTIVE)
+  avatarUrl    String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  assignedTransactions  AssetTransaction[]   @relation("TransactionPerformedBy")
+  assignedBy            AssetAssignment[]    @relation("AssignmentAssignedBy")
+  returnedBy            AssetAssignment[]    @relation("AssignmentReturnedBy")
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  uploadedAttachments   Attachment[]
+  inventoryTransactions InventoryTransaction[]
+  maintenanceRecords    MaintenanceRecord[]
+  createdAssets         Asset[]              @relation("AssetCreatedBy")
+  createdEmployees      Employee[]           @relation("EmployeeImportedBy")
+  settingsUpdates       Setting[]
+
+  @@index([role, status])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String?  @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees Employee[]
+  locations Location[]
+
+  @@index([name])
+}
+
+model Employee {
+  id            String           @id @default(cuid())
+  fiaNumber     String?          @unique
+  employeeNo    String?          @unique
+  firstName     String
+  middleName    String?
+  lastName      String
+  fullName      String
+  email         String?          @unique
+  phone         String?
+  position      String?
+  unit          String?
+  status        EmploymentStatus @default(ACTIVE)
+  departmentId  String
+  locationId    String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  department  Department         @relation(fields: [departmentId], references: [id])
+  location    Location?          @relation(fields: [locationId], references: [id])
+  createdBy   User?              @relation("EmployeeImportedBy", fields: [createdById], references: [id])
+  assignments AssetAssignment[]
+  assetToTransactions   AssetTransaction[] @relation("TransactionToEmployee")
+  assetFromTransactions AssetTransaction[] @relation("TransactionFromEmployee")
+  assetSubjectTransactions AssetTransaction[] @relation("TransactionSubjectEmployee")
+  attachments           Attachment[]
+
+  @@index([lastName, firstName])
+  @@index([departmentId, status])
+  @@index([status])
+}
+
+model Location {
+  id        String    @id @default(cuid())
+  name      String
+  code      String?   @unique
+  parentId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  parent   Location?   @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Location[]  @relation("LocationTree")
+  departments Department[]
+  employees Employee[]
+  assets   Asset[]
+  inventoryItems InventoryItem[]
+
+  @@unique([parentId, name])
+  @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// Serialized assets
+// ---------------------------------------------------------------------------
+
+model AssetCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  requiresSerial Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets Asset[]
+}
+
+model Asset {
+  id                String      @id @default(cuid())
+  assetTag          String      @unique
+  serialNumber      String?     @unique
+  name              String
+  description       String?
+  status            AssetStatus @default(AVAILABLE)
+  condition         AssetCondition @default(GOOD)
+
+  categoryId        String
+  locationId        String?
+
+  brand             String?
+  model             String?
+  os                String?
+  fqdn              String?
+  ethernetMac       String?
+  wifiMac           String?
+  specifications    Json?
+
+  purchaseDate      DateTime?
+  purchaseCost      Decimal?    @db.Decimal(12, 2)
+  supplier          String?
+  warrantyEndsAt    DateTime?
+
+  notes             String?
+  archivedAt        DateTime?
+
+  activeAssignmentId String?    @unique
+  activeAssignment   AssetAssignment? @relation("ActiveAssignment", fields: [activeAssignmentId], references: [id])
+
+  createdById       String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  category          AssetCategory  @relation(fields: [categoryId], references: [id])
+  location          Location?      @relation(fields: [locationId], references: [id])
+  createdBy         User?          @relation("AssetCreatedBy", fields: [createdById], references: [id])
+
+  assignments       AssetAssignment[]
+  transactions      AssetTransaction[]
+  maintenanceRecords MaintenanceRecord[]
+  attachments       Attachment[]
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([createdAt])
+  @@index([fqdn])
+  @@index([brand])
+}
+
+model AssetAssignment {
+  id                 String           @id @default(cuid())
+  assetId            String
+  employeeId         String
+  status             AssignmentStatus @default(ACTIVE)
+
+  assignedAt         DateTime         @default(now())
+  expectedReturnAt   DateTime?
+  returnedAt         DateTime?
+
+  conditionAtCheckout AssetCondition
+  conditionAtReturn   AssetCondition?
+
+  accessoriesOut      String[]
+  accessoriesReturned String[]
+  accessoriesMissing  String[]
+
+  assignedById       String
+  returnedById       String?
+  reason             String?
+  notes              String?
+
+  previousAssignmentId String?          @unique
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  asset      Asset      @relation(fields: [assetId], references: [id])
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+  assignedBy User       @relation("AssignmentAssignedBy", fields: [assignedById], references: [id])
+  returnedBy User?      @relation("AssignmentReturnedBy", fields: [returnedById], references: [id])
+
+  previousAssignment AssetAssignment? @relation("TransferChain", fields: [previousAssignmentId], references: [id])
+  nextAssignment     AssetAssignment? @relation("TransferChain")
+
+  activeOnAsset Asset? @relation("ActiveAssignment")
+
+  @@index([assetId, status])
+  @@index([employeeId, status])
+  @@index([status, expectedReturnAt])
+  @@index([assignedAt])
+}
+
+model AssetTransaction {
+  id            String                @id @default(cuid())
+  assetId       String
+  action        AssetTransactionAction
+  performedById String
+  employeeId    String?
+  fromEmployeeId String?
+  toEmployeeId   String?
+  fromLocationId String?
+  toLocationId   String?
+  fromStatus     AssetStatus?
+  toStatus       AssetStatus?
+  conditionBefore AssetCondition?
+  conditionAfter  AssetCondition?
+  assignmentId   String?
+  notes          String?
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+
+  asset         Asset       @relation(fields: [assetId], references: [id])
+  performedBy   User        @relation("TransactionPerformedBy", fields: [performedById], references: [id])
+  employee      Employee?   @relation("TransactionSubjectEmployee", fields: [employeeId], references: [id])
+  fromEmployee  Employee?   @relation("TransactionFromEmployee", fields: [fromEmployeeId], references: [id])
+  toEmployee    Employee?   @relation("TransactionToEmployee", fields: [toEmployeeId], references: [id])
+
+  @@index([assetId, createdAt])
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([performedById])
+  @@index([fromEmployeeId])
+  @@index([toEmployeeId])
+}
+
+model MaintenanceRecord {
+  id            String           @id @default(cuid())
+  assetId       String
+  type          MaintenanceType  @default(CORRECTIVE)
+  status        MaintenanceStatus @default(OPEN)
+  title         String
+  issue         String?
+  diagnosis     String?
+  actionTaken   String?
+  partsReplaced String?
+  cost          Decimal?         @db.Decimal(12, 2)
+  technician    String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  downtimeHours Int?
+  reportedById  String?
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  asset      Asset      @relation(fields: [assetId], references: [id])
+  reportedBy User?      @relation(fields: [reportedById], references: [id])
+  attachments Attachment[]
+
+  @@index([assetId, status])
+  @@index([status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Quantity-based inventory
+// ---------------------------------------------------------------------------
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  name          String
+  sku           String   @unique
+  category      String?
+  unit          String   @default("pcs")
+  quantity      Int      @default(0)
+  minimumStock  Int      @default(0)
+  reorderLevel  Int?
+  locationId    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  location       Location?              @relation(fields: [locationId], references: [id])
+  transactions   InventoryTransaction[]
+  attachments    Attachment[]
+
+  @@index([name])
+  @@index([category])
+}
+
+model InventoryTransaction {
+  id             String              @id @default(cuid())
+  itemId         String
+  type           StockTransactionType
+  quantityChange Int
+  quantityAfter  Int
+  performedById  String
+  reference      String?
+  notes          String?
+  createdAt      DateTime            @default(now())
+
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  performedBy User          @relation(fields: [performedById], references: [id])
+
+  @@index([itemId, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// System records
+// ---------------------------------------------------------------------------
+
+model Attachment {
+  id                 String         @id @default(cuid())
+  kind               AttachmentKind @default(OTHER)
+  filename           String
+  mimeType           String?
+  sizeBytes          Int?
+  storagePath        String
+  assetId            String?
+  employeeId         String?
+  maintenanceRecordId String?
+  inventoryItemId    String?
+  uploadedById       String?
+  createdAt          DateTime       @default(now())
+
+  asset             Asset?             @relation(fields: [assetId], references: [id])
+  employee          Employee?          @relation(fields: [employeeId], references: [id])
+  maintenanceRecord MaintenanceRecord? @relation(fields: [maintenanceRecordId], references: [id])
+  inventoryItem     InventoryItem?     @relation(fields: [inventoryItemId], references: [id])
+  uploadedBy        User?              @relation(fields: [uploadedById], references: [id])
+
+  @@index([assetId])
+  @@index([employeeId])
+  @@index([maintenanceRecordId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  summary    String
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(INFO)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}
