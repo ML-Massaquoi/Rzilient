@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import {
   SESSION_COOKIE,
@@ -14,6 +14,18 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
+/** Secure cookies are silently dropped by browsers over plain http://
+ *  (localhost is the only exception). Mark the cookie Secure only when the
+ *  app is actually reached over HTTPS — via NEXT_PUBLIC_APP_URL or a
+ *  reverse proxy's x-forwarded-proto header. */
+async function cookieSecure(): Promise<boolean> {
+  if ((process.env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://")) {
+    return true;
+  }
+  const h = await headers();
+  return h.get("x-forwarded-proto") === "https";
+}
+
 export async function createSession(userId: string): Promise<void> {
   const token = await new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
@@ -25,7 +37,7 @@ export async function createSession(userId: string): Promise<void> {
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await cookieSecure(),
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
