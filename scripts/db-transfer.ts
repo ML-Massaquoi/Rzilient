@@ -31,7 +31,9 @@ function loadEnv() {
     ) {
       value = value.slice(1, -1);
     }
-    if (process.env[key] === undefined) process.env[key] = value;
+    // Last occurrence wins (matches dotenv / Next.js behaviour — .env files
+    // often contain an example placeholder line above the real value).
+    process.env[key] = value;
   }
 }
 
