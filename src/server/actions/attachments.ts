@@ -165,7 +165,8 @@ export async function deleteAttachmentAction(
     }
 
     const storageRoot = path.join(process.cwd(), "storage");
-    const abs = path.join(process.cwd(), attachment.storagePath);
+    // Uploaded files live under storage/ at runtime — intentionally dynamic.
+    const abs = path.join(/* turbopackIgnore: true */ process.cwd(), attachment.storagePath);
     if (!abs.startsWith(storageRoot + path.sep)) {
       return failure("Invalid file path.");
     }
