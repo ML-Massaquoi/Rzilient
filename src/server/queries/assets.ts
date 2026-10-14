@@ -204,5 +204,21 @@ export function getFormOptions() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-  ]).then(([categories, locations]) => ({ categories, locations }));
+    db.department.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.deviceModel.findMany({
+      orderBy: [{ brand: "asc" }, { name: "asc" }],
+      select: { brand: true, name: true },
+    }),
+  ]).then(([categories, locations, departments, models]) => ({
+    categories,
+    locations,
+    departments,
+    brands: [...new Set(models.map((m) => m.brand))],
+    modelNames: [...new Set(models.map((m) => m.name))].sort((a, b) =>
+      a.localeCompare(b)
+    ),
+  }));
 }

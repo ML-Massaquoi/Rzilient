@@ -153,6 +153,81 @@ async function seedSettings() {
   }
 }
 
+const SYSTEMS: { name: string; slug: string }[] = [
+  { name: "Office 365", slug: "office-365" },
+  { name: "Sage", slug: "sage" },
+  { name: "TAMS", slug: "tams" },
+  { name: "FIDS", slug: "fids" },
+  { name: "Payroll", slug: "payroll" },
+];
+
+async function seedSystems() {
+  for (const system of SYSTEMS) {
+    await db.itSystem.upsert({
+      where: { slug: system.slug },
+      update: {},
+      create: system,
+    });
+  }
+  return SYSTEMS.length;
+}
+
+/**
+ * One-time-friendly backfills (idempotent):
+ * - DeviceModel rows from every distinct category+brand+model on assets
+ * - Asset.departmentId from the current custodian's department (where unset)
+ */
+async function backfills() {
+  const existing = await db.deviceModel.findMany({
+    select: { categoryId: true, brand: true, name: true, id: true },
+  });
+  const modelByKey = new Map(
+    existing.map((m) => [`${m.categoryId}|${m.brand}|${m.name}`, m.id])
+  );
+
+  const assets = await db.asset.findMany({
+    where: {
+      modelId: null,
+      brand: { not: null },
+      model: { not: null },
+    },
+    select: { id: true, categoryId: true, brand: true, model: true },
+  });
+
+  let createdModels = 0;
+  let linkedAssets = 0;
+  for (const asset of assets) {
+    const brand = (asset.brand ?? "").trim();
+    const name = (asset.model ?? "").trim();
+    if (!brand || !name) continue;
+    const key = `${asset.categoryId}|${brand}|${name}`;
+    let modelId = modelByKey.get(key);
+    if (!modelId) {
+      const created = await db.deviceModel.create({
+        data: { categoryId: asset.categoryId, brand, name },
+      });
+      modelId = created.id;
+      modelByKey.set(key, modelId);
+      createdModels += 1;
+    }
+    await db.asset.update({
+      where: { id: asset.id },
+      data: { modelId },
+    });
+    linkedAssets += 1;
+  }
+
+  const departmentsSet = await db.$executeRaw`
+    UPDATE "Asset" a
+    SET "departmentId" = e."departmentId"
+    FROM "AssetAssignment" asg
+    JOIN "Employee" e ON e."id" = asg."employeeId"
+    WHERE a."activeAssignmentId" = asg."id"
+      AND a."departmentId" IS NULL`;
+
+  return { createdModels, linkedAssets, departmentsSet };
+}
+
 async function main() {
   console.log("Seeding Rzilient...");
 
@@ -167,6 +242,14 @@ async function main() {
 
   await seedSettings();
   console.log("  ✓ settings");
+
+  const systems = await seedSystems();
+  console.log(`  ✓ ${systems} systems (Office 365, Sage, TAMS, FIDS, Payroll)`);
+
+  const { createdModels, linkedAssets, departmentsSet } = await backfills();
+  console.log(
+    `  ✓ backfill: ${createdModels} device models created, ${linkedAssets} assets linked, ${departmentsSet} departments set from custodians`
+  );
 }
 
 main()

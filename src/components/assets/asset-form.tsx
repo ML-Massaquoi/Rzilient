@@ -49,6 +49,7 @@ export type AssetDefaults = Partial<
     | "status"
     | "condition"
     | "locationId"
+    | "departmentId"
     | "os"
     | "fqdn"
     | "ethernetMac"
@@ -117,6 +118,9 @@ export function AssetForm({
   assetId,
   categories,
   locations,
+  departments,
+  brands,
+  modelNames,
   defaults,
   lockedStatus,
   cancelHref,
@@ -126,6 +130,9 @@ export function AssetForm({
   assetId?: string;
   categories: Option[];
   locations: Option[];
+  departments: Option[];
+  brands: string[];
+  modelNames: string[];
   defaults: AssetDefaults;
   /** When the asset status is managed by workflows (checked out/retired/disposed). */
   lockedStatus?: AssetStatus;
@@ -309,6 +316,26 @@ export function AssetForm({
               </SelectContent>
             </Select>
           </Field>
+
+          <Field
+            label="Department"
+            htmlFor="departmentId"
+            error={err("departmentId")}
+            hint="Shared devices belong to a department even when unassigned"
+          >
+            <Select name="departmentId" defaultValue={v("departmentId")}>
+              <SelectTrigger id="departmentId" className="w-full">
+                <SelectValue placeholder="No department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       </section>
 
@@ -320,12 +347,23 @@ export function AssetForm({
           />
 
           <Field label="Brand" htmlFor="brand" error={err("brand")}>
-            <Input id="brand" name="brand" defaultValue={v("brand")} placeholder="Dell" />
+            <Input id="brand" name="brand" list="asset-brand-options" defaultValue={v("brand")} placeholder="Dell" />
           </Field>
 
           <Field label="Model" htmlFor="model" error={err("model")}>
-            <Input id="model" name="model" defaultValue={v("model")} placeholder="Latitude 5420" />
+            <Input id="model" name="model" list="asset-model-options" defaultValue={v("model")} placeholder="Latitude 5420" />
           </Field>
+
+          <datalist id="asset-brand-options">
+            {brands.map((brand) => (
+              <option key={brand} value={brand} />
+            ))}
+          </datalist>
+          <datalist id="asset-model-options">
+            {modelNames.map((modelName) => (
+              <option key={modelName} value={modelName} />
+            ))}
+          </datalist>
 
           <Field label="Operating system" htmlFor="os" error={err("os")}>
             <Input id="os" name="os" defaultValue={v("os")} placeholder="Windows 11 Pro" />

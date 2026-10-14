@@ -55,7 +55,7 @@ const STEP_LABELS = ["Identity", "Details", "Commercial", "Review"] as const;
 
 const STEP_FIELDS: string[][] = [
   ["name", "assetTag", "categoryId", "serialNumber"],
-  ["status", "condition", "locationId", "brand", "model", "os", "fqdn", "ethernetMac", "wifiMac"],
+  ["status", "condition", "locationId", "departmentId", "brand", "model", "os", "fqdn", "ethernetMac", "wifiMac"],
   ["purchaseDate", "purchaseCost", "supplier", "warrantyEndsAt", "description", "notes"],
   [],
 ];
@@ -120,12 +120,18 @@ function StepHeading({
 export function AssetWizard({
   categories,
   locations,
+  departments,
+  brands,
+  modelNames,
   nextTag,
   initialSerial,
   initialTag,
 }: {
   categories: Option[];
   locations: Option[];
+  departments: Option[];
+  brands: string[];
+  modelNames: string[];
   nextTag: string;
   initialSerial?: string;
   initialTag?: string;
@@ -799,13 +805,48 @@ export function AssetWizard({
                 </Select>
                 <input type="hidden" name="locationId" value={v("locationId")} />
               </Field>
-              <div />
+              <Field
+                label="Department"
+                htmlFor="departmentId"
+                error={err("departmentId")}
+                hint="Shared devices (printers etc.) belong to a department even when unassigned"
+              >
+                <Select
+                  value={v("departmentId") || "__none__"}
+                  onValueChange={(value) =>
+                    set("departmentId", !value || value === "__none__" ? "" : value)
+                  }
+                >
+                  <SelectTrigger id="departmentId" className="w-full">
+                    <SelectValue placeholder="No department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No department</SelectItem>
+                    {departments.map((department) => (
+                      <SelectItem key={department.id} value={department.id}>
+                        {department.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input type="hidden" name="departmentId" value={v("departmentId")} />
+              </Field>
               <Field label="Brand" htmlFor="brand" error={err("brand")}>
-                <Input id="brand" name="brand" value={v("brand")} onChange={(e) => set("brand", e.target.value)} placeholder="Dell" />
+                <Input id="brand" name="brand" list="asset-brand-options" value={v("brand")} onChange={(e) => set("brand", e.target.value)} placeholder="Dell" />
               </Field>
               <Field label="Model" htmlFor="model" error={err("model")}>
-                <Input id="model" name="model" value={v("model")} onChange={(e) => set("model", e.target.value)} placeholder="Latitude 5420" />
+                <Input id="model" name="model" list="asset-model-options" value={v("model")} onChange={(e) => set("model", e.target.value)} placeholder="Latitude 5420" />
               </Field>
+              <datalist id="asset-brand-options">
+                {brands.map((brand) => (
+                  <option key={brand} value={brand} />
+                ))}
+              </datalist>
+              <datalist id="asset-model-options">
+                {modelNames.map((modelName) => (
+                  <option key={modelName} value={modelName} />
+                ))}
+              </datalist>
               <Field label="Operating system" htmlFor="os" error={err("os")}>
                 <Input id="os" name="os" value={v("os")} onChange={(e) => set("os", e.target.value)} placeholder="Windows 11 Pro" />
               </Field>

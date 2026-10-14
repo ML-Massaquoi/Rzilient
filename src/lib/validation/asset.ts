@@ -67,6 +67,7 @@ export const assetFormSchema = z.object({
   status: z.string().min(1, "Status is required"),
   condition: z.enum(AssetCondition),
   locationId: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  departmentId: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   os: optionalText(80),
   fqdn: optionalText(120),
   ethernetMac: macAddress("Ethernet MAC"),

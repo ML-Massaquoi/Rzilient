@@ -60,6 +60,7 @@ function toAssetData(data: ParsedAsset) {
     notes: data.notes ?? null,
     condition: data.condition,
     locationId: data.locationId ?? null,
+    departmentId: data.departmentId ?? null,
     os: data.os ?? null,
     fqdn: data.fqdn ?? null,
     ethernetMac: data.ethernetMac ?? null,
@@ -69,6 +70,35 @@ function toAssetData(data: ParsedAsset) {
     supplier: data.supplier ?? null,
     warrantyEndsAt: data.warrantyEndsAt ? new Date(data.warrantyEndsAt) : null,
   };
+}
+
+/**
+ * Links the asset to the DeviceModel catalog — reusing an existing
+ * category+brand+model entry when there is one, creating it when it's new
+ * (that is how new models get added during registration).
+ */
+async function resolveDeviceModelId(
+  categoryId: string,
+  brand?: string,
+  model?: string
+): Promise<string | null> {
+  const b = (brand ?? "").trim();
+  const m = (model ?? "").trim();
+  if (!b || !m) return null;
+
+  const candidates = await db.deviceModel.findMany({
+    where: { categoryId, brand: { equals: b, mode: "insensitive" } },
+    select: { id: true, name: true },
+  });
+  const hit = candidates.find(
+    (candidate) => candidate.name.toLowerCase() === m.toLowerCase()
+  );
+  if (hit) return hit.id;
+
+  const created = await db.deviceModel.create({
+    data: { categoryId, brand: b, name: m },
+  });
+  return created.id;
 }
 
 const CHANGE_LABELS: Record<string, string> = {
@@ -82,6 +112,7 @@ const CHANGE_LABELS: Record<string, string> = {
   notes: "notes",
   condition: "condition",
   locationId: "location",
+  departmentId: "department",
   os: "operating system",
   fqdn: "hostname",
   ethernetMac: "Ethernet MAC",
@@ -153,10 +184,17 @@ export async function createAsset(
       );
     }
 
+    const modelId = await resolveDeviceModelId(
+      data.categoryId,
+      data.brand,
+      data.model
+    );
+
     const asset = await db.$transaction(async (tx) => {
       const created = await tx.asset.create({
         data: {
           ...toAssetData(data),
+          modelId,
           status: initialStatus,
           createdById: user.id,
         },
@@ -296,8 +334,15 @@ export async function updateAsset(
       return failure("This asset no longer exists.");
     }
 
+    const modelId = await resolveDeviceModelId(
+      data.categoryId,
+      data.brand,
+      data.model
+    );
+
     const nextData = {
       ...toAssetData(data),
+      modelId,
       status: nextStatus,
     };
 

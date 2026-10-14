@@ -139,7 +139,7 @@ export async function checkOutAsset(
 
       const employee = await tx.employee.findUnique({
         where: { id: employeeId },
-        select: { id: true, fullName: true, status: true },
+        select: { id: true, fullName: true, status: true, departmentId: true },
       });
       if (!employee) return { ok: false as const, error: "The selected employee no longer exists." };
       if (employee.status !== "ACTIVE") {
@@ -160,7 +160,11 @@ export async function checkOutAsset(
 
       await tx.asset.update({
         where: { id: asset.id },
-        data: { status: "CHECKED_OUT", activeAssignmentId: assignment.id },
+        data: {
+          status: "CHECKED_OUT",
+          activeAssignmentId: assignment.id,
+          departmentId: employee.departmentId,
+        },
       });
 
       await tx.assetTransaction.create({
@@ -411,7 +415,7 @@ export async function transferAsset(
 
       const toEmployee = await tx.employee.findUnique({
         where: { id: toEmployeeId },
-        select: { id: true, fullName: true, status: true },
+        select: { id: true, fullName: true, status: true, departmentId: true },
       });
       if (!toEmployee) {
         return { ok: false as const, error: "The selected employee no longer exists." };
@@ -441,7 +445,11 @@ export async function transferAsset(
 
       await tx.asset.update({
         where: { id: assignment.assetId },
-        data: { activeAssignmentId: newAssignment.id, status: "CHECKED_OUT" },
+        data: {
+          activeAssignmentId: newAssignment.id,
+          status: "CHECKED_OUT",
+          departmentId: toEmployee.departmentId,
+        },
       });
 
       await tx.assetTransaction.create({

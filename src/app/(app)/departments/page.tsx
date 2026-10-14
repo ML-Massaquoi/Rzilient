@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
-import { Building2Icon, MapPinIcon } from "lucide-react";
+import Link from "next/link";
+import { Building2Icon, ChevronRightIcon, MapPinIcon } from "lucide-react";
 import { listDepartmentsWithCounts } from "@/server/queries/employees";
 import { db } from "@/lib/db";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -65,13 +66,19 @@ export default async function DepartmentsPage() {
                 <TableHead>Active employees</TableHead>
                 <TableHead>Devices checked out</TableHead>
                 <TableHead>Notes</TableHead>
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {result.departments.map((department) => (
                 <TableRow key={department.id}>
                   <TableCell className="min-w-[220px] text-sm font-medium">
-                    {department.name}
+                    <Link
+                      href={`/departments/${department.id}`}
+                      className="hover:text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
+                    >
+                      {department.name}
+                    </Link>
                   </TableCell>
                   <TableCell className="font-mono text-sm whitespace-nowrap">
                     {department.code ?? <span className="text-muted-foreground">—</span>}
@@ -90,6 +97,15 @@ export default async function DepartmentsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground max-w-[280px] text-xs">
                     {department.description ?? <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/departments/${department.id}`}
+                      aria-label={`Open ${department.name}`}
+                      className="text-muted-foreground hover:text-primary block"
+                    >
+                      <ChevronRightIcon className="size-4" />
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

@@ -63,6 +63,9 @@ export default async function EditAssetPage({
           name: category.name,
         }))}
         locations={options.locations}
+        departments={options.departments}
+        brands={options.brands}
+        modelNames={options.modelNames}
         lockedStatus={lockedStatus}
         defaults={{
           name: asset.name,
@@ -76,6 +79,7 @@ export default async function EditAssetPage({
           status: asset.status,
           condition: asset.condition,
           locationId: asset.locationId ?? "",
+          departmentId: asset.departmentId ?? "",
           os: asset.os ?? "",
           fqdn: asset.fqdn ?? "",
           ethernetMac: asset.ethernetMac ?? "",

@@ -58,6 +58,9 @@ export default async function NewAssetPage({
           requiresSerial: category.requiresSerial,
         }))}
         locations={options.locations}
+        departments={options.departments}
+        brands={options.brands}
+        modelNames={options.modelNames}
         nextTag={nextTag}
         initialSerial={initialSerial}
         initialTag={initialTag}

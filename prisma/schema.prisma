@@ -160,8 +160,38 @@ model Department {
 
   employees Employee[]
   locations Location[]
+  assets    Asset[]
 
   @@index([name])
+}
+
+// ---------------------------------------------------------------------------
+// System account directory
+// ---------------------------------------------------------------------------
+
+model ItSystem {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  accounts EmployeeAccount[]
+}
+
+model EmployeeAccount {
+  id         String   @id @default(cuid())
+  employeeId String
+  systemId   String
+  username   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  system   ItSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, systemId])
+  @@index([systemId])
 }
 
 model Employee {
@@ -188,6 +218,7 @@ model Employee {
   location    Location?          @relation(fields: [locationId], references: [id])
   createdBy   User?              @relation("EmployeeImportedBy", fields: [createdById], references: [id])
   assignments AssetAssignment[]
+  systemAccounts EmployeeAccount[]
   assetToTransactions   AssetTransaction[] @relation("TransactionToEmployee")
   assetFromTransactions AssetTransaction[] @relation("TransactionFromEmployee")
   assetSubjectTransactions AssetTransaction[] @relation("TransactionSubjectEmployee")
@@ -231,7 +262,24 @@ model AssetCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  assets Asset[]
+  assets       Asset[]
+  deviceModels DeviceModel[]
+}
+
+model DeviceModel {
+  id         String   @id @default(cuid())
+  categoryId String
+  brand      String
+  name       String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category AssetCategory @relation(fields: [categoryId], references: [id])
+  assets   Asset[]
+
+  @@unique([categoryId, brand, name])
+  @@index([categoryId])
 }
 
 model Asset {
@@ -245,6 +293,8 @@ model Asset {
 
   categoryId        String
   locationId        String?
+  departmentId      String?
+  modelId           String?
 
   brand             String?
   model             String?
@@ -271,6 +321,8 @@ model Asset {
 
   category          AssetCategory  @relation(fields: [categoryId], references: [id])
   location          Location?      @relation(fields: [locationId], references: [id])
+  department        Department?    @relation(fields: [departmentId], references: [id])
+  deviceModel       DeviceModel?   @relation(fields: [modelId], references: [id])
   createdBy         User?          @relation("AssetCreatedBy", fields: [createdById], references: [id])
 
   assignments       AssetAssignment[]
@@ -281,6 +333,7 @@ model Asset {
   @@index([status])
   @@index([categoryId])
   @@index([locationId])
+  @@index([departmentId])
   @@index([createdAt])
   @@index([fqdn])
   @@index([brand])

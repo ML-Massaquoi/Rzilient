@@ -6,6 +6,7 @@ import {
   BoxesIcon,
   Building2Icon,
   CableIcon,
+  CpuIcon,
   FileTextIcon,
   HistoryIcon,
   LaptopIcon,
@@ -42,6 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { title: "All Assets", href: "/assets", icon: BoxesIcon },
       { title: "Devices", href: "/assets/devices", icon: LaptopIcon },
+      { title: "Device Models", href: "/assets/models", icon: CpuIcon },
       { title: "Accessories", href: "/assets/accessories", icon: CableIcon },
       { title: "Maintenance", href: "/maintenance", icon: WrenchIcon },
     ],
