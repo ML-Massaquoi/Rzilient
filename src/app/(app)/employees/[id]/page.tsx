@@ -30,11 +30,11 @@ export default async function EmployeeDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ just?: string }>;
+  searchParams: Promise<{ just?: string; count?: string }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
-  const { just } = await searchParams;
+  const { just, count } = await searchParams;
   const employee = await getEmployeeDetail(id);
   if (!employee) notFound();
 
@@ -74,6 +74,13 @@ export default async function EmployeeDetailPage({
               ? "The photo was deleted from this profile."
               : `Your photos are now visible on ${employee.fullName}'s profile.`
           }
+        />
+      ) : null}
+
+      {just === "checked-out-multi" ? (
+        <SweetAlert
+          title={`${Number(count ?? "1")} devices checked out`}
+          description={`All selected devices are now assigned to ${employee.fullName}. Open each device below for serial numbers and photos.`}
         />
       ) : null}
 

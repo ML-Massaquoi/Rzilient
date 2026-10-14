@@ -16,7 +16,6 @@ const isoDate = z.preprocess(
 );
 
 export const checkoutSchema = z.object({
-  assetId: z.string().min(1, "Select an asset to check out"),
   employeeId: z.string().min(1, "Select an employee"),
   condition: z.enum(ASSET_CONDITIONS),
   expectedReturnAt: isoDate,
@@ -25,6 +24,7 @@ export const checkoutSchema = z.object({
 
 export const returnSchema = z.object({
   assignmentId: z.string().min(1, "Select an assignment"),
+  locationId: z.string().min(1, "Choose the warehouse the device goes to"),
   condition: z.enum(ASSET_CONDITIONS),
   damageNotes: optionalText(1000),
   notes: optionalText(2000),

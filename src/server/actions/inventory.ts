@@ -102,7 +102,7 @@ export async function createInventoryItem(
       return created;
     });
 
-    target = `/inventory?just=created#${item.id}`;
+    target = `/inventory/stock?just=created#${item.id}`;
   } catch (error) {
     logActionError("createInventoryItem", error);
     return failure("Unable to save the stock item right now. Please try again.");
@@ -200,7 +200,7 @@ export async function updateInventoryItem(
       });
     });
 
-    target = `/inventory?just=updated#${itemId}`;
+    target = `/inventory/stock?just=updated#${itemId}`;
   } catch (error) {
     logActionError("updateInventoryItem", error);
     return failure("Unable to save your changes right now. Please try again.");
@@ -316,7 +316,7 @@ export async function recordStockTransaction(
     if (!outcome.ok) {
       return failure(outcome.error);
     }
-    target = `/inventory?just=transacted#${outcome.transactionId}`;
+    target = `/inventory/stock?just=transacted#${outcome.transactionId}`;
   } catch (error) {
     logActionError("recordStockTransaction", error);
     return failure(

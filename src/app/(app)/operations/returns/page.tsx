@@ -6,6 +6,8 @@ import {
   getActiveAssignment,
   listActiveAssignments,
 } from "@/server/queries/custody";
+import { listWarehouseOptions } from "@/server/queries/warehouses";
+import { DEFAULT_WAREHOUSE_CODE } from "@/lib/warehouses";
 import { AssignmentList } from "@/components/operations/assignment-list";
 import { ReturnPanel } from "@/components/operations/return-panel";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +26,15 @@ export default async function ReturnsPage({
   await requireRole("ADMIN", "IT_STAFF");
   const params = await searchParams;
   const q = params.q?.trim() || undefined;
-  const [{ items, overdueCount, activeCount }, selected] = await Promise.all([
-    listActiveAssignments({ q }),
-    params.assignment ? getActiveAssignment(params.assignment) : null,
-  ]);
+  const [{ items, overdueCount, activeCount }, selected, warehouses] =
+    await Promise.all([
+      listActiveAssignments({ q }),
+      params.assignment ? getActiveAssignment(params.assignment) : null,
+      listWarehouseOptions(),
+    ]);
+  const defaultWarehouseId =
+    warehouses.find((row) => row.code === DEFAULT_WAREHOUSE_CODE)?.id ??
+    warehouses[0]?.id;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -75,7 +82,11 @@ export default async function ReturnsPage({
       </form>
 
       {selected ? (
-        <ReturnPanel assignment={selected} />
+        <ReturnPanel
+          assignment={selected}
+          warehouses={warehouses}
+          defaultLocationId={defaultWarehouseId}
+        />
       ) : (
         <p className="text-muted-foreground text-sm">
           Pick a row below to record its return.

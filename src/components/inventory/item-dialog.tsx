@@ -73,11 +73,13 @@ export function ItemDialog({
   item,
   categories,
   locations,
+  defaultLocationId,
 }: {
   mode: "create" | "edit";
   item?: InventoryListItem;
   categories: string[];
   locations: { id: string; name: string }[];
+  defaultLocationId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const action = mode === "create" ? createInventoryItem : updateInventoryItem;
@@ -181,7 +183,10 @@ export function ItemDialog({
               <Select
                 name="locationId"
                 defaultValue={
-                  state.values?.locationId ?? item?.locationId ?? NO_LOCATION
+                  state.values?.locationId ??
+                  item?.locationId ??
+                  defaultLocationId ??
+                  NO_LOCATION
                 }
               >
                 <SelectTrigger id="locationId" aria-label="Location">

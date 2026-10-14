@@ -19,13 +19,24 @@ import type { ActiveAssignment } from "@/server/queries/custody";
 import { ASSET_CONDITIONS } from "@/lib/validation/asset";
 import { CONDITION_LABELS } from "@/lib/labels";
 
-export function ReturnPanel({ assignment }: { assignment: ActiveAssignment }) {
+export function ReturnPanel({
+  assignment,
+  warehouses,
+  defaultLocationId,
+}: {
+  assignment: ActiveAssignment;
+  warehouses: { id: string; name: string }[];
+  defaultLocationId?: string;
+}) {
   const [state, formAction, pending] = useActionState(returnAsset, {
     ok: false,
     attempt: 0,
   });
   const [condition, setCondition] = useState<string>(
     assignment.asset.condition
+  );
+  const [locationId, setLocationId] = useState<string>(
+    defaultLocationId ?? warehouses[0]?.id ?? ""
   );
   const [returned, setReturned] = useState<string[]>(
     assignment.accessoriesOut
@@ -94,6 +105,32 @@ export function ReturnPanel({ assignment }: { assignment: ActiveAssignment }) {
         </Select>
         <p className="text-muted-foreground text-xs">
           Damaged or malfunctioning assets move to maintenance automatically.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="return-warehouse">
+          Send to warehouse
+          <span className="text-destructive ml-0.5">*</span>
+        </Label>
+        <Select
+          name="locationId"
+          value={locationId}
+          onValueChange={(next) => setLocationId(next ?? locationId)}
+        >
+          <SelectTrigger id="return-warehouse" className="w-full">
+            <SelectValue placeholder="Choose a warehouse" />
+          </SelectTrigger>
+          <SelectContent>
+            {warehouses.map((warehouse) => (
+              <SelectItem key={warehouse.id} value={warehouse.id}>
+                {warehouse.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-xs">
+          The device is registered in this warehouse once returned.
         </p>
       </div>
 

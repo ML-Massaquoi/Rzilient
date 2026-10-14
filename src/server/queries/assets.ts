@@ -173,12 +173,101 @@ export function getAssetDetail(id: string) {
         take: 50,
         include: { reportedBy: { select: { name: true } } },
       },
+      parent: {
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          category: { select: { name: true } },
+          attachments: {
+            where: { kind: "ASSET_PHOTO" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, filename: true },
+          },
+        },
+      },
+      children: {
+        orderBy: { assetTag: "asc" },
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          brand: true,
+          model: true,
+          serialNumber: true,
+          status: true,
+          condition: true,
+          category: { select: { name: true } },
+          attachments: {
+            where: { kind: "ASSET_PHOTO" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, filename: true },
+          },
+        },
+      },
       _count: { select: { attachments: true, assignments: true } },
     },
   });
 }
 
 export type AssetDetail = NonNullable<Awaited<ReturnType<typeof getAssetDetail>>>;
+
+/** Candidate devices to attach as components (excludes a subtree + itself). */
+export async function searchComponentAssets(
+  query: string,
+  excludeUnderAssetId?: string,
+  limit = 10
+) {
+  const q = query.trim();
+  if (!q) return [];
+
+  let excludeIds: string[] = [];
+  if (excludeUnderAssetId) {
+    const rows = await db.$queryRaw<{ id: string }[]>`
+      WITH RECURSIVE subtree AS (
+        SELECT id FROM "Asset" WHERE id = ${excludeUnderAssetId}
+        UNION
+        SELECT a.id FROM "Asset" a JOIN subtree s ON a."parentId" = s.id
+      )
+      SELECT id FROM subtree`;
+    excludeIds = rows.map((row) => row.id);
+  }
+
+  return db.asset.findMany({
+    where: {
+      archivedAt: null,
+      status: { notIn: [AssetStatus.RETIRED, AssetStatus.DISPOSED] },
+      ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
+      OR: [
+        { assetTag: { contains: q, mode: "insensitive" } },
+        { name: { contains: q, mode: "insensitive" } },
+        { serialNumber: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
+        { model: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    orderBy: [{ assetTag: "asc" }],
+    take: limit,
+    select: {
+      id: true,
+      assetTag: true,
+      name: true,
+      brand: true,
+      model: true,
+      serialNumber: true,
+      status: true,
+      category: { select: { name: true } },
+      attachments: {
+        where: { kind: "ASSET_PHOTO" as const },
+        orderBy: { createdAt: "desc" as const },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  });
+}
 
 /** Suggested next tag following the FIA-IT-##### convention. */
 export async function getNextAssetTag(): Promise<string> {

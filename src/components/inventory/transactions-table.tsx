@@ -55,7 +55,7 @@ export function TransactionsTable({ items }: { items: StockTxListItem[] }) {
               </td>
               <td className="px-3 py-2.5 align-top">
                 <Link
-                  href={`/inventory?q=${encodeURIComponent(tx.item.sku)}`}
+                  href={`/inventory/stock?q=${encodeURIComponent(tx.item.sku)}`}
                   className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {tx.item.name}

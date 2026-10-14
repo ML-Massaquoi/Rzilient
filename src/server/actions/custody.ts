@@ -15,6 +15,7 @@ import {
 import { partitionAccessories } from "@/lib/custody";
 import { searchEmployees } from "@/server/queries/employees";
 import { searchAvailableAssets } from "@/server/queries/custody";
+import { getWarehouseRootId } from "@/server/queries/warehouses";
 
 export type CustodyFormState = {
   ok: boolean;
@@ -73,7 +74,7 @@ function safeParse<T extends z.ZodType>(
 export async function searchCheckoutAssetsAction(query: string) {
   const user = await getActionUser();
   if (!user) return [];
-  return searchAvailableAssets(query);
+  return searchAvailableAssets(query, 20);
 }
 
 export async function searchAssignableEmployeesAction(query: string) {
@@ -106,37 +107,26 @@ export async function checkOutAsset(
   if (!parsed.ok) return parsed.state;
 
   const accessories = stringList(formData, "accessories");
-  const { assetId, employeeId, condition, expectedReturnAt, notes } = parsed.data;
+  const { employeeId, condition, expectedReturnAt, notes } = parsed.data;
+
+  // Multiple assets (wizard) or a single one (quick dialog on asset detail).
+  const assetIds = [...new Set(stringList(formData, "assetIds"))];
+  if (assetIds.length === 0 && values.assetId) {
+    assetIds.push(values.assetId);
+  }
+  if (assetIds.length === 0) {
+    return {
+      ...base,
+      errors: { assetIds: ["Select at least one asset to check out."] },
+    };
+  }
+
   const expectedReturnDate = parseDateOnly(expectedReturnAt);
   const ip = await clientIp();
 
   let target: string | null = null;
   try {
     const outcome = await db.$transaction(async (tx) => {
-      const asset = await tx.asset.findUnique({
-        where: { id: assetId },
-        select: {
-          id: true,
-          assetTag: true,
-          name: true,
-          status: true,
-          condition: true,
-          activeAssignmentId: true,
-        },
-      });
-      if (!asset) return { ok: false as const, error: "That asset no longer exists." };
-      if (asset.activeAssignmentId) {
-        return { ok: false as const, error: `${asset.assetTag} already has an active assignment.` };
-      }
-      if (asset.status !== "AVAILABLE") {
-        return {
-          ok: false as const,
-          error: `${asset.assetTag} is not available (status: ${asset.status
-            .toLowerCase()
-            .replace("_", " ")}).`,
-        };
-      }
-
       const employee = await tx.employee.findUnique({
         where: { id: employeeId },
         select: { id: true, fullName: true, status: true, departmentId: true },
@@ -146,77 +136,120 @@ export async function checkOutAsset(
         return { ok: false as const, error: `${employee.fullName} is not an active employee.` };
       }
 
-      const assignment = await tx.assetAssignment.create({
-        data: {
-          assetId: asset.id,
-          employeeId: employee.id,
-          conditionAtCheckout: condition,
-          assignedById: user.id,
-          expectedReturnAt: expectedReturnDate,
-          accessoriesOut: accessories,
-          notes: notes || null,
+      const assets = await tx.asset.findMany({
+        where: { id: { in: assetIds } },
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          status: true,
+          condition: true,
+          activeAssignmentId: true,
         },
       });
+      if (assets.length === 0) {
+        return { ok: false as const, error: "Those assets no longer exist." };
+      }
+      if (assets.length !== assetIds.length) {
+        return {
+          ok: false as const,
+          error: "One of the selected assets no longer exists. Refresh and try again.",
+        };
+      }
+      for (const asset of assets) {
+        if (asset.activeAssignmentId) {
+          return {
+            ok: false as const,
+            error: `${asset.assetTag} already has an active assignment.`,
+          };
+        }
+        if (asset.status !== "AVAILABLE") {
+          return {
+            ok: false as const,
+            error: `${asset.assetTag} is not available (status: ${asset.status
+              .toLowerCase()
+              .replace("_", " ")}).`,
+          };
+        }
+      }
 
-      await tx.asset.update({
-        where: { id: asset.id },
-        data: {
-          status: "CHECKED_OUT",
-          activeAssignmentId: assignment.id,
-          departmentId: employee.departmentId,
-        },
-      });
-
-      await tx.assetTransaction.create({
-        data: {
-          assetId: asset.id,
-          action: "CHECKED_OUT",
-          performedById: user.id,
-          employeeId: employee.id,
-          fromStatus: asset.status,
-          toStatus: "CHECKED_OUT",
-          conditionBefore: asset.condition,
-          conditionAfter: condition,
-          assignmentId: assignment.id,
-          notes: notes || null,
-          metadata: {
-            accessories,
-            expectedReturnAt: expectedReturnDate?.toISOString() ?? null,
+      for (const asset of assets) {
+        const assignment = await tx.assetAssignment.create({
+          data: {
+            assetId: asset.id,
+            employeeId: employee.id,
+            conditionAtCheckout: condition,
+            assignedById: user.id,
+            expectedReturnAt: expectedReturnDate,
+            accessoriesOut: accessories,
+            notes: notes || null,
           },
-        },
-      });
+        });
 
-      await tx.auditLog.create({
-        data: {
-          userId: user.id,
-          action: "ASSET_CHECKED_OUT",
-          entityType: "Asset",
-          entityId: asset.id,
-          summary: `${asset.assetTag} checked out to ${employee.fullName}`,
-          after: {
+        await tx.asset.update({
+          where: { id: asset.id },
+          data: {
+            status: "CHECKED_OUT",
+            activeAssignmentId: assignment.id,
+            departmentId: employee.departmentId,
+          },
+        });
+
+        await tx.assetTransaction.create({
+          data: {
+            assetId: asset.id,
+            action: "CHECKED_OUT",
+            performedById: user.id,
+            employeeId: employee.id,
+            fromStatus: asset.status,
+            toStatus: "CHECKED_OUT",
+            conditionBefore: asset.condition,
+            conditionAfter: condition,
             assignmentId: assignment.id,
-            employee: employee.fullName,
-            condition,
-            accessories,
-            expectedReturnAt:
-              expectedReturnDate?.toISOString() ?? null,
+            notes: notes || null,
+            metadata: {
+              accessories,
+              expectedReturnAt:
+                expectedReturnDate?.toISOString() ?? null,
+            },
           },
-          ip,
-        },
-      });
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: user.id,
+            action: "ASSET_CHECKED_OUT",
+            entityType: "Asset",
+            entityId: asset.id,
+            summary: `${asset.assetTag} checked out to ${employee.fullName}`,
+            after: {
+              assignmentId: assignment.id,
+              employee: employee.fullName,
+              condition,
+              accessories,
+              expectedReturnAt:
+                expectedReturnDate?.toISOString() ?? null,
+            },
+            ip,
+          },
+        });
+      }
 
       return {
         ok: true as const,
-        assetId: asset.id,
-        assetName: asset.name,
-        employeeName: employee.fullName,
+        firstAssetId: assets[0].id,
+        count: assets.length,
+        employeeId: employee.id,
       };
     });
 
     if (!outcome.ok) {
       return failure(outcome.error);
     }
-    target = `/assets/${outcome.assetId}?just=checked-out`;
+    target =
+      outcome.count === 1
+        ? `/assets/${outcome.firstAssetId}?just=checked-out`
+        : `/employees/${outcome.employeeId}?just=checked-out-multi&count=${outcome.count}`;
   } catch (error) {
     logActionError("checkOutAsset", error);
     return failure("Unable to check out this asset right now. Please try again.");
@@ -248,11 +281,25 @@ export async function returnAsset(
   if (!parsed.ok) return parsed.state;
 
   const returnedInput = stringList(formData, "returned");
-  const { assignmentId, condition, damageNotes, notes } = parsed.data;
+  const { assignmentId, locationId, condition, damageNotes, notes } =
+    parsed.data;
   const ip = await clientIp();
 
   let target: string | null = null;
   try {
+    const rootId = await getWarehouseRootId();
+    const warehouse = rootId
+      ? await db.location.findFirst({
+          where: { id: locationId, parentId: rootId },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (!warehouse) {
+      return failure(
+        "Choose one of the warehouses for the returned device."
+      );
+    }
+
     const outcome = await db.$transaction(async (tx) => {
       const assignment = await tx.assetAssignment.findUnique({
         where: { id: assignmentId },
@@ -264,6 +311,7 @@ export async function returnAsset(
               name: true,
               status: true,
               condition: true,
+              locationId: true,
               activeAssignmentId: true,
             },
           },
@@ -303,7 +351,12 @@ export async function returnAsset(
 
       await tx.asset.update({
         where: { id: assignment.assetId },
-        data: { status: newStatus, condition, activeAssignmentId: null },
+        data: {
+          status: newStatus,
+          condition,
+          activeAssignmentId: null,
+          locationId: warehouse.id,
+        },
       });
 
       await tx.assetTransaction.create({
@@ -312,13 +365,19 @@ export async function returnAsset(
           action: "RETURNED",
           performedById: user.id,
           fromEmployeeId: assignment.employeeId,
+          fromLocationId: assignment.asset.locationId,
+          toLocationId: warehouse.id,
           fromStatus: assignment.asset.status,
           toStatus: newStatus,
           conditionBefore: assignment.asset.condition,
           conditionAfter: condition,
           assignmentId: assignment.id,
           notes: combinedNotes,
-          metadata: { accessoriesReturned: returned, accessoriesMissing: missing },
+          metadata: {
+            accessoriesReturned: returned,
+            accessoriesMissing: missing,
+            warehouse: warehouse.name,
+          },
         },
       });
 
@@ -328,11 +387,12 @@ export async function returnAsset(
           action: "ASSET_RETURNED",
           entityType: "Asset",
           entityId: assignment.assetId,
-          summary: `${assignment.asset.assetTag} returned by ${assignment.employee.fullName}`,
+          summary: `${assignment.asset.assetTag} returned by ${assignment.employee.fullName} to ${warehouse.name}`,
           after: {
             condition,
             status: newStatus,
             accessoriesMissing: missing,
+            warehouse: warehouse.name,
           },
           ip,
         },

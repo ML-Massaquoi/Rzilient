@@ -8,6 +8,7 @@ export const STOCK_TX_PAGE_SIZE = 20;
 export type InventoryListParams = {
   q?: string;
   category?: string;
+  locationId?: string;
   page?: number;
 };
 
@@ -70,6 +71,9 @@ export async function listInventoryItems(params: InventoryListParams) {
   if (params.category) {
     where.category = { equals: params.category, mode: "insensitive" };
   }
+  if (params.locationId) {
+    where.locationId = params.locationId;
+  }
 
   const total = await db.inventoryItem.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / INVENTORY_PAGE_SIZE));
@@ -87,9 +91,12 @@ export async function listInventoryItems(params: InventoryListParams) {
 }
 
 /** Items whose quantity is below their configured minimum (§31). */
-export async function getLowStockItems(limit = 50) {
+export async function getLowStockItems(limit = 50, locationId?: string) {
   const candidates = await db.inventoryItem.findMany({
-    where: { minimumStock: { gt: 0 } },
+    where: {
+      minimumStock: { gt: 0 },
+      ...(locationId ? { locationId } : {}),
+    },
     orderBy: { name: "asc" },
     select: ITEM_SELECT,
   });

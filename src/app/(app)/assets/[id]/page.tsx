@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowRightLeftIcon,
   ArrowLeftIcon,
+  BoxesIcon,
   CameraIcon,
   ClipboardCheckIcon,
   HistoryIcon,
@@ -15,6 +16,7 @@ import {
 import { requireUser } from "@/server/auth";
 import { getAssetDetail } from "@/server/queries/assets";
 import { StatusBadge } from "@/components/assets/status-badge";
+import { AssetComponents } from "@/components/assets/asset-components";
 import {
   PhotoCaptureButton,
   PhotoGallery,
@@ -86,7 +88,17 @@ export default async function AssetDetailPage({
                 ? `Custody of ${asset.name} moved to ${custodian}.`
                 : `Custody of ${asset.name} was transferred.`,
             }
-          : null;
+          : just === "component-added"
+            ? {
+                title: "Component attached",
+                description: `The component now appears under ${asset.name}'s Components list.`,
+              }
+            : just === "component-removed"
+              ? {
+                  title: "Component detached",
+                  description: "The component is no longer linked to this device.",
+                }
+              : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -205,6 +217,15 @@ export default async function AssetDetailPage({
             <LayoutGridIcon />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="components">
+            <BoxesIcon />
+            Components
+            {asset.children.length > 0 ? (
+              <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                {asset.children.length}
+              </span>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="history">
             <HistoryIcon />
             History
@@ -229,6 +250,10 @@ export default async function AssetDetailPage({
 
         <TabsContent value="overview" keepMounted className="mt-4">
           <AssetOverview asset={asset} canWrite={canWrite} />
+        </TabsContent>
+
+        <TabsContent value="components" keepMounted className="mt-4">
+          <AssetComponents asset={asset} canWrite={canWrite} />
         </TabsContent>
 
         <TabsContent value="history" keepMounted className="mt-4">

@@ -206,6 +206,17 @@ export function AssetOverview({
         <CardContent className="divide-border divide-y">
           <dl>
             <InfoRow label="Category" value={asset.category.name} />
+            {asset.parent ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">Part of</span>
+                <Link
+                  href={`/assets/${asset.parent.id}`}
+                  className="w-fit rounded-sm text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {asset.parent.assetTag} · {asset.parent.name}
+                </Link>
+              </div>
+            ) : null}
             <InfoRow label="Condition" value={CONDITION_LABELS[asset.condition]} />
             <InfoRow label="Brand" value={asset.brand} />
             <InfoRow label="Model" value={asset.model} />

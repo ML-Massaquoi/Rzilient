@@ -14,6 +14,12 @@ import ExcelJS from "exceljs";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import {
+  DEFAULT_WAREHOUSE_CODE,
+  WAREHOUSES,
+  WAREHOUSE_ROOT_CODE,
+  WAREHOUSE_ROOT_NAME,
+} from "../src/lib/warehouses";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -172,6 +178,44 @@ async function seedSystems() {
   return SYSTEMS.length;
 }
 
+/** Creates the "Warehouses" root location + the three warehouse children. */
+async function seedWarehouses() {
+  const root = await db.location.upsert({
+    where: { code: WAREHOUSE_ROOT_CODE },
+    update: { name: WAREHOUSE_ROOT_NAME },
+    create: { name: WAREHOUSE_ROOT_NAME, code: WAREHOUSE_ROOT_CODE },
+  });
+
+  const warehouses = [];
+  for (const warehouse of WAREHOUSES) {
+    const row = await db.location.upsert({
+      where: { code: warehouse.code },
+      update: { name: warehouse.name, parentId: root.id },
+      create: { ...warehouse, parentId: root.id },
+    });
+    warehouses.push(row);
+  }
+  return warehouses;
+}
+
+/**
+ * Places every device in a warehouse: devices outside the three warehouses
+ * (no location, or an old building location) go to the default warehouse.
+ * Idempotent — devices already in any warehouse keep their warehouse.
+ */
+async function warehouseBackfill(warehouses: { id: string; code: string | null }[]) {
+  const ids = warehouses.map((w) => w.id);
+  const defaultWarehouse =
+    warehouses.find((w) => w.code === DEFAULT_WAREHOUSE_CODE) ?? warehouses[0];
+  if (!defaultWarehouse) return 0;
+
+  const result = await db.asset.updateMany({
+    where: { OR: [{ locationId: null }, { locationId: { notIn: ids } }] },
+    data: { locationId: defaultWarehouse.id },
+  });
+  return result.count;
+}
+
 /**
  * One-time-friendly backfills (idempotent):
  * - DeviceModel rows from every distinct category+brand+model on assets
@@ -245,6 +289,13 @@ async function main() {
 
   const systems = await seedSystems();
   console.log(`  ✓ ${systems} systems (Office 365, Sage, TAMS, FIDS, Payroll)`);
+
+  const warehouses = await seedWarehouses();
+  console.log(
+    `  ✓ ${warehouses.length} warehouses (${WAREHOUSES.map((w) => w.name).join(", ")})`
+  );
+  const movedToWarehouse = await warehouseBackfill(warehouses);
+  console.log(`  ✓ ${movedToWarehouse} devices placed in their warehouse`);
 
   const { createdModels, linkedAssets, departmentsSet } = await backfills();
   console.log(

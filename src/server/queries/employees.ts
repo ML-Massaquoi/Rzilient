@@ -93,6 +93,9 @@ export function getEmployeeDetail(id: string) {
               status: true,
               condition: true,
               serialNumber: true,
+              brand: true,
+              model: true,
+              description: true,
               category: { select: { name: true } },
               attachments: {
                 where: { kind: "ASSET_PHOTO" },

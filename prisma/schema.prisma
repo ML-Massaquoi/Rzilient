@@ -74,6 +74,8 @@ enum AssetTransactionAction {
   LOCATION_CHANGED
   CONDITION_CHANGED
   STATUS_CHANGED
+  COMPONENT_ADDED
+  COMPONENT_REMOVED
 }
 
 enum MaintenanceType {
@@ -315,6 +317,10 @@ model Asset {
   activeAssignmentId String?    @unique
   activeAssignment   AssetAssignment? @relation("ActiveAssignment", fields: [activeAssignmentId], references: [id])
 
+  parentId  String?
+  parent    Asset?  @relation("AssetComponents", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Asset[] @relation("AssetComponents")
+
   createdById       String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
@@ -334,6 +340,7 @@ model Asset {
   @@index([categoryId])
   @@index([locationId])
   @@index([departmentId])
+  @@index([parentId])
   @@index([createdAt])
   @@index([fqdn])
   @@index([brand])

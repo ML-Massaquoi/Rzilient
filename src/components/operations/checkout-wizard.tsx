@@ -22,12 +22,12 @@ import { ASSET_CONDITIONS } from "@/lib/validation/asset";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { formatDate } from "@/lib/datetime";
 import {
-  AssetPicker,
+  AssetMultiPicker,
   EmployeePicker,
   type EmployeeHit,
 } from "./selectors";
 
-const STEPS = ["Asset", "Employee", "Condition & accessories", "Confirm"] as const;
+const STEPS = ["Assets", "Employee", "Condition & accessories", "Confirm"] as const;
 
 export function CheckoutWizard({
   initialAsset,
@@ -39,7 +39,9 @@ export function CheckoutWizard({
     attempt: 0,
   });
   const [step, setStep] = useState(initialAsset ? 2 : 1);
-  const [asset, setAsset] = useState<CheckoutAsset | null>(initialAsset);
+  const [assets, setAssets] = useState<CheckoutAsset[]>(
+    initialAsset ? [initialAsset] : []
+  );
   const [employee, setEmployee] = useState<EmployeeHit | null>(null);
   const [condition, setCondition] = useState<string>(
     initialAsset?.condition ?? "GOOD"
@@ -49,11 +51,6 @@ export function CheckoutWizard({
   const [notes, setNotes] = useState("");
   const [hint, setHint] = useState<string | null>(null);
 
-  function pickAsset(next: CheckoutAsset | null) {
-    setAsset(next);
-    if (next) setCondition(next.condition);
-  }
-
   function toggleAccessory(name: string) {
     setAccessories((prev) =>
       prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]
@@ -62,8 +59,8 @@ export function CheckoutWizard({
 
   function goNext() {
     setHint(null);
-    if (step === 1 && !asset) {
-      setHint("Select an asset to continue.");
+    if (step === 1 && assets.length === 0) {
+      setHint("Select at least one asset to continue.");
       return;
     }
     if (step === 2 && !employee) {
@@ -108,13 +105,17 @@ export function CheckoutWizard({
       })}
       </ol>
 
-      {asset && step > 1 ? (
-        <div className="border-border flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
-          <span className="min-w-0 truncate">
-            <span className="text-muted-foreground mr-2 font-mono text-xs">
-              {asset.assetTag}
+      {assets.length > 0 && step > 1 ? (
+        <div className="border-border flex items-start justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+          <span className="min-w-0">
+            <span className="text-muted-foreground block text-xs">
+              {assets.length} device{assets.length === 1 ? "" : "s"} selected
             </span>
-            {asset.name}
+            <span className="mt-0.5 block truncate">
+              {assets
+                .map((asset) => `${asset.assetTag} ${asset.name}`)
+                .join(" · ")}
+            </span>
           </span>
           <Button
             type="button"
@@ -125,13 +126,20 @@ export function CheckoutWizard({
               setStep(1);
             }}
           >
-            Change asset
+            Change assets
           </Button>
         </div>
       ) : null}
 
       <form action={formAction} className="flex flex-col gap-5">
-        <input type="hidden" name="assetId" value={asset?.id ?? ""} />
+        {assets.map((asset) => (
+          <input
+            key={asset.id}
+            type="hidden"
+            name="assetIds"
+            value={asset.id}
+          />
+        ))}
         <input type="hidden" name="employeeId" value={employee?.id ?? ""} />
         <input type="hidden" name="condition" value={condition} />
         <input
@@ -159,13 +167,15 @@ export function CheckoutWizard({
         {step === 1 ? (
           <section className="border-border flex flex-col gap-4 rounded-lg border p-5">
             <div>
-              <h2 className="text-sm font-semibold">1. Select the asset</h2>
+              <h2 className="text-sm font-semibold">1. Select the assets</h2>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                Only available assets without an active assignment can be
-                checked out.
+                Pick one or more devices — PC, laptop, printer, phone — they
+                are all handed to the same employee in one step. Only
+                available assets without an active assignment can be checked
+                out.
               </p>
             </div>
-            <AssetPicker value={asset} onChange={pickAsset} />
+            <AssetMultiPicker value={assets} onChange={setAssets} />
           </section>
         ) : null}
 
@@ -189,7 +199,8 @@ export function CheckoutWizard({
                 3. Condition &amp; accessories
               </h2>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                Record what leaves the store with this asset.
+                Record what leaves the store with these assets — one shared
+                condition and accessory set for the whole handover.
               </p>
             </div>
 
@@ -255,19 +266,27 @@ export function CheckoutWizard({
           </section>
         ) : null}
 
-        {step === 4 && asset && employee ? (
+        {step === 4 && assets.length > 0 && employee ? (
           <section className="border-border flex flex-col gap-4 rounded-lg border p-5">
             <div>
               <h2 className="text-sm font-semibold">4. Confirm check-out</h2>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                The transaction is committed atomically — asset status,
+                The transaction is committed atomically — every asset status,
                 assignment and history are updated together.
               </p>
             </div>
             <dl className="divide-border border-t text-sm">
-              <SummaryRow label="Asset">
-                <span className="font-mono text-xs">{asset.assetTag}</span>{" "}
-                {asset.name}
+              <SummaryRow label={`Assets (${assets.length})`}>
+                <ul className="flex flex-col items-end gap-1">
+                  {assets.map((asset) => (
+                    <li key={asset.id}>
+                      <span className="font-mono text-xs">
+                        {asset.assetTag}
+                      </span>{" "}
+                      {asset.name}
+                    </li>
+                  ))}
+                </ul>
               </SummaryRow>
               <SummaryRow label="Employee">
                 {employee.fullName}

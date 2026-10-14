@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PhotoCaptureButton } from "@/components/attachments/photo-gallery";
 import { cn } from "cn";
 import { formatDate, formatRelative } from "@/lib/datetime";
+import { CONDITION_LABELS } from "@/lib/labels";
 import type { EmployeeDetail } from "@/server/queries/employees";
 
 function InfoRow({
@@ -146,10 +147,16 @@ export function CurrentAssets({ employee }: { employee: EmployeeDetail }) {
     <div className="grid gap-3 sm:grid-cols-2">
       {active.map((assignment) => {
         const photo = assignment.asset.attachments[0];
+        const brandModel = [assignment.asset.brand, assignment.asset.model]
+          .filter(Boolean)
+          .join(" · ");
+        const overdue =
+          assignment.expectedReturnAt != null &&
+          new Date(assignment.expectedReturnAt) < new Date();
         return (
           <div
             key={assignment.id}
-            className="bg-card flex flex-col gap-2 rounded-lg border p-4"
+            className="bg-card flex flex-col gap-2.5 rounded-lg border p-4"
           >
             <div className="flex items-start gap-3">
               {photo ? (
@@ -164,12 +171,12 @@ export function CurrentAssets({ employee }: { employee: EmployeeDetail }) {
                   <img
                     src={`/api/files/${photo.id}`}
                     alt={assignment.asset.name}
-                    className="border-border size-12 rounded-md border object-cover"
+                    className="border-border size-16 rounded-md border object-cover"
                   />
                 </a>
               ) : (
-                <div className="bg-muted border-border text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-md border">
-                  <LaptopIcon className="size-5" />
+                <div className="bg-muted border-border text-muted-foreground flex size-16 shrink-0 items-center justify-center rounded-md border">
+                  <LaptopIcon className="size-6" />
                 </div>
               )}
               <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
@@ -180,6 +187,11 @@ export function CurrentAssets({ employee }: { employee: EmployeeDetail }) {
                   >
                     {assignment.asset.name}
                   </Link>
+                  {brandModel ? (
+                    <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                      {brandModel}
+                    </p>
+                  ) : null}
                   <p className="text-muted-foreground mt-0.5 font-mono text-xs">
                     {assignment.asset.assetTag}
                     {assignment.asset.serialNumber
@@ -190,9 +202,38 @@ export function CurrentAssets({ employee }: { employee: EmployeeDetail }) {
                 <StatusBadge status={assignment.asset.status} />
               </div>
             </div>
-            <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
-              <span>{assignment.asset.category.name}</span>
+
+            {assignment.asset.description ? (
+              <p className="text-muted-foreground line-clamp-2 text-xs">
+                {assignment.asset.description}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-xs">
+                {CONDITION_LABELS[assignment.asset.condition]}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {assignment.asset.category.name}
+              </Badge>
+              {assignment.accessoriesOut.length > 0 ? (
+                <Badge variant="outline" className="text-xs">
+                  {assignment.accessoriesOut.length} accessor
+                  {assignment.accessoriesOut.length === 1 ? "y" : "ies"}
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="text-muted-foreground flex items-center justify-between gap-2 border-t pt-2 text-xs">
               <span>Out since {formatDate(assignment.assignedAt)}</span>
+              {assignment.expectedReturnAt ? (
+                <span
+                  className={cn(overdue && "text-destructive font-medium")}
+                >
+                  {overdue ? "Overdue · " : "Due "}
+                  {formatDate(assignment.expectedReturnAt)}
+                </span>
+              ) : null}
             </div>
           </div>
         );

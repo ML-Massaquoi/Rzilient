@@ -86,7 +86,7 @@ const DELEGATES: Record<TableName, string> = {
 // Columns that cannot be set at insert time (patched afterwards).
 const DEFER: Partial<Record<TableName, string[]>> = {
   Location: ["parentId"],
-  Asset: ["activeAssignmentId"],
+  Asset: ["activeAssignmentId", "parentId"],
   AssetAssignment: ["previousAssignmentId"],
 };
 
@@ -196,6 +196,12 @@ async function importData(db: AnyDb, inFile: string) {
       await db.asset.update({
         where: { id: String(row.id) },
         data: { activeAssignmentId: String(row.activeAssignmentId) },
+      });
+    }
+    if (row.parentId) {
+      await db.asset.update({
+        where: { id: String(row.id) },
+        data: { parentId: String(row.parentId) },
       });
     }
   }

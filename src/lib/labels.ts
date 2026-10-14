@@ -46,6 +46,8 @@ export const ACTION_LABELS: Record<AssetTransactionAction, string> = {
   LOCATION_CHANGED: "Location changed",
   CONDITION_CHANGED: "Condition changed",
   STATUS_CHANGED: "Status changed",
+  COMPONENT_ADDED: "Component added",
+  COMPONENT_REMOVED: "Component removed",
 };
 
 export const EMPLOYMENT_STATUS_LABELS: Record<EmploymentStatus, string> = {
