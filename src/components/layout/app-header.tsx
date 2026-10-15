@@ -1,9 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LogOutIcon, MenuIcon, MoonIcon, SunIcon } from "lucide-react";
+import {
+  LogOutIcon,
+  MenuIcon,
+  MoonIcon,
+  SunIcon,
+  UserRoundIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Avatar,
@@ -95,6 +102,13 @@ function UserMenu({ user }: { user: SessionUser }) {
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          render={<Link href="/profile" />}
+          className="cursor-pointer"
+        >
+          <UserRoundIcon />
+          View profile
+        </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {

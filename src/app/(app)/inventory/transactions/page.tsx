@@ -1,10 +1,11 @@
 ﻿import type { Metadata } from "next";
-import { HistoryIcon } from "lucide-react";
+import { ArrowRightLeftIcon, HistoryIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { listStockTransactions, listStockUsers } from "@/server/queries/inventory";
 import { TransactionFilters } from "@/components/inventory/tx-filters";
 import { TransactionsTable } from "@/components/inventory/transactions-table";
 import { ListPagination } from "@/components/assets/list-pagination";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
@@ -56,15 +57,16 @@ export default async function StockTransactionsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Stock Transactions
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Every receive, issue, adjustment, damage and loss — immutable and
-          ordered newest first.
-        </p>
-      </div>
+      <PageHeader
+        icon={HistoryIcon}
+        iconClassName="bg-orange-500/15 text-orange-600 dark:text-orange-400"
+        title="Stock Transactions"
+        subtitle="Every receive, issue, adjustment, damage and loss — immutable and ordered newest first."
+        chips={[
+          { label: "Transactions", value: result.total, icon: HistoryIcon },
+          { label: "Users", value: users.length, icon: ArrowRightLeftIcon },
+        ]}
+      />
 
       <TransactionFilters users={users} />
 

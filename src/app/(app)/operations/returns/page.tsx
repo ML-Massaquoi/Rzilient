@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import { SearchIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowDownToLineIcon, SearchIcon, TriangleAlertIcon, UsersIcon } from "lucide-react";
 import { requireRole } from "@/server/auth";
 import {
   getActiveAssignment,
@@ -10,7 +10,7 @@ import { listWarehouseOptions } from "@/server/queries/warehouses";
 import { DEFAULT_WAREHOUSE_CODE } from "@/lib/warehouses";
 import { AssignmentList } from "@/components/operations/assignment-list";
 import { ReturnPanel } from "@/components/operations/return-panel";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -38,32 +38,29 @@ export default async function ReturnsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Returns
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Record asset returns fast — condition, missing accessories and
-            damage notes in one step.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{activeCount} active</Badge>
-          {overdueCount > 0 ? (
-            <Badge
-              variant="outline"
-              className="border-destructive/40 text-destructive"
-            >
-              <TriangleAlertIcon className="size-3" />
-              {overdueCount} overdue
-            </Badge>
-          ) : null}
+      <PageHeader
+        icon={ArrowDownToLineIcon}
+        iconClassName="bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        title="Returns"
+        subtitle="Record asset returns fast — condition, missing accessories and damage notes in one step."
+        chips={[
+          { label: "Active Assignments", value: activeCount, icon: UsersIcon },
+          ...(overdueCount > 0
+            ? [
+                {
+                  label: "Overdue",
+                  value: overdueCount,
+                  icon: TriangleAlertIcon,
+                },
+              ]
+            : []),
+        ]}
+        actions={
           <Button variant="outline" render={<Link href="/operations/check-out" />}>
             Check out an asset
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <form className="flex max-w-md gap-2" action="/operations/returns">
         <div className="relative flex-1">

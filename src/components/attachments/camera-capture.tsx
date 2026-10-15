@@ -35,7 +35,7 @@ export function CameraCaptureButton({
   title = "Take a photo with the camera",
   children,
 }: {
-  entity: "asset" | "employee";
+  entity: "asset" | "employee" | "maintenance";
   entityId: string;
   returnUrl: string;
   triggerClassName?: string;
@@ -77,7 +77,7 @@ function CameraDialog({
   returnUrl,
 }: {
   onClose: () => void;
-  entity: "asset" | "employee";
+  entity: "asset" | "employee" | "maintenance";
   entityId: string;
   returnUrl: string;
 }) {

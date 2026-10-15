@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import { SearchIcon } from "lucide-react";
+import { ArrowRightLeftIcon, SearchIcon, UsersIcon } from "lucide-react";
 import { requireRole } from "@/server/auth";
 import {
   getActiveAssignment,
@@ -8,7 +8,7 @@ import {
 } from "@/server/queries/custody";
 import { AssignmentList } from "@/components/operations/assignment-list";
 import { TransferPanel } from "@/components/operations/transfer-panel";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -31,23 +31,18 @@ export default async function TransfersPage({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Transfers
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Move custody between employees — history is never overwritten; the
-            previous assignment stays permanently on record.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{activeCount} active</Badge>
+      <PageHeader
+        icon={ArrowRightLeftIcon}
+        iconClassName="bg-violet-500/15 text-violet-600 dark:text-violet-400"
+        title="Transfers"
+        subtitle="Move custody between employees — history is never overwritten; the previous assignment stays permanently on record."
+        chips={[{ label: "Active Assignments", value: activeCount, icon: UsersIcon }]}
+        actions={
           <Button variant="outline" render={<Link href="/operations/check-out" />}>
             Check out an asset
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <form className="flex max-w-md gap-2" action="/operations/transfers">
         <div className="relative flex-1">

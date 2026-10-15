@@ -7,6 +7,7 @@ import {
   BoxesIcon,
   CameraIcon,
   ClipboardCheckIcon,
+  FileTextIcon,
   HistoryIcon,
   LayoutGridIcon,
   PencilIcon,
@@ -58,13 +59,13 @@ export default async function AssetDetailPage({
   const success =
     just === "deleted"
       ? {
-          title: "Photo removed",
-          description: "The photo was deleted from this asset.",
+          title: "File removed",
+          description: "The file was deleted from this asset.",
         }
       : just === "photo"
       ? {
-          title: "Photos uploaded",
-          description: `Your photos are now visible on ${asset.name}.`,
+          title: "Files uploaded",
+          description: `Photos and documents are now visible on ${asset.name}.`,
         }
       : just === "checked-out"
       ? {
@@ -243,8 +244,8 @@ export default async function AssetDetailPage({
             ) : null}
           </TabsTrigger>
           <TabsTrigger value="documents">
-            <CameraIcon />
-            Photos
+            <FileTextIcon />
+            Documents
           </TabsTrigger>
         </TabsList>
 
@@ -265,10 +266,26 @@ export default async function AssetDetailPage({
             records={asset.maintenanceRecords}
             assetId={asset.id}
             canWrite={canWrite}
+            assetMeta={{
+              brand: asset.brand,
+              model: asset.model,
+              serialNumber: asset.serialNumber,
+            }}
           />
         </TabsContent>
 
         <TabsContent value="documents" keepMounted className="mt-4">
+          <div className="bg-primary/5 border-primary/10 mb-4 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Brand / model</span>
+            <span className="font-medium">
+              {[asset.brand, asset.model].filter(Boolean).join(" ") || "—"}
+            </span>
+            {asset.serialNumber ? (
+              <span className="border-border rounded border bg-background px-1.5 py-0.5 font-mono">
+                SN: {asset.serialNumber}
+              </span>
+            ) : null}
+          </div>
           <PhotoGallery
             entity="asset"
             entityId={asset.id}
@@ -276,6 +293,7 @@ export default async function AssetDetailPage({
             canWrite={canWrite}
             returnUrl={`/assets/${asset.id}`}
             subject="device"
+            showDocKind
           />
         </TabsContent>
       </Tabs>

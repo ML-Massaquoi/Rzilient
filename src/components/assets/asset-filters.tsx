@@ -31,8 +31,12 @@ const CONDITION_OPTIONS: Option[] = Object.values(AssetCondition).map(
 
 export function AssetFilters({
   categories,
+  brands = [],
+  models = [],
 }: {
   categories: { slug: string; name: string }[];
+  brands?: string[];
+  models?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,12 +47,17 @@ export function AssetFilters({
   const status = searchParams.get("status") ?? "";
   const category = searchParams.get("category") ?? "";
   const condition = searchParams.get("condition") ?? "";
-  const hasFilters = Boolean(q || status || category || condition);
+  const brand = searchParams.get("brand") ?? "";
+  const model = searchParams.get("model") ?? "";
+  const hasFilters = Boolean(
+    q || status || category || condition || brand || model
+  );
 
-  function patch(key: string, value: string) {
+  function patch(key: string, value: string, clear: string[] = []) {
     const params = new URLSearchParams(searchParams.toString());
     if (value && value !== ANY) params.set(key, value);
     else params.delete(key);
+    for (const stale of clear) params.delete(stale);
     params.delete("page");
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -65,6 +74,15 @@ export function AssetFilters({
     value: c.slug,
     label: c.name,
   }));
+
+  // Keep the active selection visible even when it falls outside the
+  // currently scoped option list (e.g. brand filtered down by a category).
+  const brandOptions: string[] = brand && !brands.includes(brand)
+    ? [brand, ...brands]
+    : brands;
+  const modelOptions: string[] = model && !models.includes(model)
+    ? [model, ...models]
+    : models;
 
   return (
     <div className={cn("flex flex-col gap-2 lg:flex-row lg:items-center")}>
@@ -106,7 +124,7 @@ export function AssetFilters({
 
         <Select
           value={category || ANY}
-          onValueChange={(value) => patch("category", value ?? ANY)}
+          onValueChange={(value) => patch("category", value ?? ANY, ["brand", "model"])}
         >
           <SelectTrigger className="h-9 w-[150px]" aria-label="Filter by category">
             <SelectValue />
@@ -116,6 +134,40 @@ export function AssetFilters({
             {categoryOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={brand || ANY}
+          onValueChange={(value) => patch("brand", value ?? ANY, ["model"])}
+        >
+          <SelectTrigger className="h-9 w-[150px]" aria-label="Filter by brand">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>Any brand</SelectItem>
+            {brandOptions.map((value) => (
+              <SelectItem key={value} value={value}>
+                {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={model || ANY}
+          onValueChange={(value) => patch("model", value ?? ANY)}
+        >
+          <SelectTrigger className="h-9 w-[160px]" aria-label="Filter by model">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>Any model</SelectItem>
+            {modelOptions.map((value) => (
+              <SelectItem key={value} value={value}>
+                {value}
               </SelectItem>
             ))}
           </SelectContent>

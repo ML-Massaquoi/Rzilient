@@ -27,11 +27,18 @@ import {
   getDepartmentOverview,
   getDepartmentSystemAccounts,
 } from "@/server/queries/departments";
+import { listDepartmentOptions } from "@/server/queries/employees";
 import { StatusBadge } from "@/components/assets/status-badge";
+import {
+  DepartmentDialog,
+  DeleteDepartmentDialog,
+  type DepartmentItem,
+} from "@/components/departments/department-dialog";
 import {
   NewSystemDialog,
   SystemAccountsPanel,
 } from "@/components/departments/department-detail";
+import { MoveEmployeesDialog } from "@/components/departments/move-employees";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,18 +83,24 @@ export default async function DepartmentDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tile?: string; just?: string }>;
+  searchParams: Promise<{ tile?: string; just?: string; count?: string }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
-  const { tile, just } = await searchParams;
+  const { tile, just, count } = await searchParams;
 
-  const overview = await getDepartmentOverview(id);
+  const [overview, destinations] = await Promise.all([
+    getDepartmentOverview(id),
+    listDepartmentOptions(),
+  ]);
   if (!overview) notFound();
 
   const canWrite = user.role !== "VIEWER";
   const canAddSystem = user.role === "ADMIN";
+  const canManageDepartment = user.role === "ADMIN";
+  const canMoveEmployees = user.role === "ADMIN" || user.role === "IT_STAFF";
 
+  const movedCount = Number(count);
   const baseHref = `/departments/${id}`;
   const activeTile = typeof tile === "string" ? tile : null;
 
@@ -116,6 +129,16 @@ export default async function DepartmentDetailPage({
 
   const { department, employees, deviceTiles, systemTiles, stats } = overview;
 
+  const departmentItem: DepartmentItem = {
+    id: department.id,
+    name: department.name,
+    code: department.code,
+    description: department.description,
+    employeeCount: stats.activeEmployees,
+    allEmployeeCount: stats.totalEmployees,
+    checkedOutCount: stats.checkedOut,
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <Link
@@ -133,6 +156,25 @@ export default async function DepartmentDetailPage({
         />
       ) : just === "account" ? (
         <SweetAlert title="Account saved" description="The account is now listed under this department." />
+      ) : just === "created" ? (
+        <SweetAlert
+          title="Department created"
+          description={`${department.name} is ready — move employees into it or link devices from the directory.`}
+        />
+      ) : just === "updated" ? (
+        <SweetAlert
+          title="Department saved"
+          description="The department details have been updated."
+        />
+      ) : just === "moved" ? (
+        <SweetAlert
+          title={
+            Number.isFinite(movedCount) && movedCount > 0
+              ? `${movedCount} ${movedCount === 1 ? "employee" : "employees"} moved`
+              : "Employees moved"
+          }
+          description={`The selected employees now belong to ${department.name}.`}
+        />
       ) : null}
 
       {/* Header */}
@@ -159,13 +201,22 @@ export default async function DepartmentDetailPage({
             ) : null}
           </div>
         </div>
+        {canManageDepartment ? (
+          <div className="flex items-center gap-1">
+            <DepartmentDialog mode="edit" department={departmentItem} />
+            <DeleteDepartmentDialog
+              department={departmentItem}
+              destinations={destinations}
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <Card className="py-3">
           <CardContent className="flex items-center gap-3 px-3.5">
-            <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-lg">
+            <div className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex size-9 items-center justify-center rounded-lg">
               <UsersIcon className="size-4" />
             </div>
             <div>
@@ -183,7 +234,7 @@ export default async function DepartmentDetailPage({
         </Card>
         <Card className="py-3">
           <CardContent className="flex items-center gap-3 px-3.5">
-            <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-lg">
+            <div className="bg-sky-500/15 text-sky-600 dark:text-sky-400 flex size-9 items-center justify-center rounded-lg">
               <BoxesIcon className="size-4" />
             </div>
             <div>
@@ -198,7 +249,7 @@ export default async function DepartmentDetailPage({
         </Card>
         <Card className="py-3">
           <CardContent className="flex items-center gap-3 px-3.5">
-            <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-lg">
+            <div className="bg-violet-500/15 text-violet-600 dark:text-violet-400 flex size-9 items-center justify-center rounded-lg">
               <LaptopIcon className="size-4" />
             </div>
             <div>
@@ -430,13 +481,21 @@ export default async function DepartmentDetailPage({
       {/* Employees */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <UsersIcon className="size-4" />
-            Employees
-            <span className="text-muted-foreground font-normal tabular-nums">
-              {employees.length}
-            </span>
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <UsersIcon className="size-4" />
+              Employees
+              <span className="text-muted-foreground font-normal tabular-nums">
+                {employees.length}
+              </span>
+            </CardTitle>
+            {canMoveEmployees ? (
+              <MoveEmployeesDialog
+                departmentId={id}
+                departmentName={department.name}
+              />
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent>
           {employees.length === 0 ? (

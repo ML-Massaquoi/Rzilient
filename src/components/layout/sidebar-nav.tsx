@@ -26,8 +26,8 @@ export function SidebarNav({
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-        {sections.map((section) => (
-          <div key={section.title ?? "main"}>
+        {sections.map((section, index) => (
+          <div key={section.title ?? `section-${index}`}>
             {section.title ? (
               <p className="text-muted-foreground/70 mb-1.5 px-2.5 text-[11px] font-semibold tracking-wider uppercase">
                 {section.title}

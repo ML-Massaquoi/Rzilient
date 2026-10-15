@@ -1,13 +1,12 @@
 import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 
 const TONES = {
-  default: "bg-primary/10 text-primary",
-  success: "bg-status-available/15 text-status-available",
-  info: "bg-status-checked-out/15 text-status-checked-out",
-  warning: "bg-status-maintenance/15 text-status-maintenance",
-  danger: "bg-status-damaged/15 text-status-damaged",
+  default: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  success: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  info: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  warning: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  danger: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
 } as const;
 
 export function StatCard({
@@ -24,28 +23,28 @@ export function StatCard({
   tone?: keyof typeof TONES;
 }) {
   return (
-    <Card className="py-4">
-      <CardContent className="flex items-start justify-between gap-3 px-4">
+    <div className="bg-card border-border rounded-xl border p-4">
+      <div className="flex items-center gap-3.5">
+        <span
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-xl",
+            TONES[tone]
+          )}
+        >
+          <Icon className="size-5" />
+        </span>
         <div className="min-w-0">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-            {label}
+          <p className="text-muted-foreground text-sm font-medium">{label}</p>
+          <p className="mt-0.5 text-2xl leading-none font-bold tabular-nums">
+            {value}
           </p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
           {hint ? (
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">
+            <p className="text-muted-foreground mt-1.5 truncate text-xs">
               {hint}
             </p>
           ) : null}
         </div>
-        <span
-          className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-lg",
-            TONES[tone]
-          )}
-        >
-          <Icon className="size-4" />
-        </span>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

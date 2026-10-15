@@ -107,6 +107,7 @@ export async function getDepartmentOverview(departmentId: string) {
     stats: {
       activeEmployees,
       inactiveEmployees,
+      totalEmployees: employees.length,
       deviceTotal,
       checkedOut,
     },

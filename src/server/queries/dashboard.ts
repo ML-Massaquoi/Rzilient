@@ -18,7 +18,9 @@ export function getDashboardStats() {
     db.asset.groupBy({ by: ["status"], _count: { _all: true } }),
     db.asset.count(),
     db.asset.groupBy({ by: ["categoryId"], _count: { _all: true } }),
-    db.assetCategory.findMany({ select: { id: true, name: true } }),
+    db.assetCategory.findMany({
+      select: { id: true, name: true, slug: true },
+    }),
     db.employee.count({ where: { status: "ACTIVE" } }),
     db.assetAssignment.count({
       where: { status: "ACTIVE", expectedReturnAt: { lt: now } },
@@ -92,13 +94,17 @@ export function getDashboardStats() {
       ) as Partial<Record<AssetStatus, number>>;
 
       const categoryNameById = new Map(
-        categories.map((category) => [category.id, category.name])
+        categories.map((category) => [
+          category.id,
+          { name: category.name, slug: category.slug },
+        ])
       );
 
       const distribution = categoryGroups
         .map((group) => ({
           id: group.categoryId,
-          name: categoryNameById.get(group.categoryId) ?? "Uncategorized",
+          name: categoryNameById.get(group.categoryId)?.name ?? "Uncategorized",
+          slug: categoryNameById.get(group.categoryId)?.slug ?? null,
           count: group._count._all,
         }))
         .sort((a, b) => b.count - a.count);

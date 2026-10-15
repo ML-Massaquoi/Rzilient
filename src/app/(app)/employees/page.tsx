@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import { UploadIcon, UsersIcon, PlusIcon } from "lucide-react";
+import { Building2Icon, UploadIcon, UsersIcon, PlusIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import {
   getEmployeeFilterOptions,
@@ -9,6 +9,7 @@ import {
 import { EmployeeFilters } from "@/components/employees/employee-filters";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { ListPagination } from "@/components/assets/list-pagination";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "cn";
@@ -57,34 +58,46 @@ export default async function EmployeesPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Employee Directory
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {result.total === 0
-              ? "No employees in the directory yet"
-              : `${result.total} employee${result.total === 1 ? "" : "s"}`}
-            {hasFilters ? " matching the current filters" : ""}
-          </p>
-        </div>
-        {canWrite ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/employees/import"
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              <UploadIcon />
-              Import
-            </Link>
-            <Link href="/employees/new" className={cn(buttonVariants())}>
-              <PlusIcon />
-              New employee
-            </Link>
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        icon={UsersIcon}
+        title="Employee Directory"
+        subtitle={
+          result.total === 0
+            ? "No employees in the directory yet"
+            : `${result.total} employee${result.total === 1 ? "" : "s"}${
+                hasFilters ? " matching the current filters" : ""
+              }`
+        }
+        chips={[
+          {
+            label: "Employees",
+            value: result.total,
+            icon: UsersIcon,
+          },
+          {
+            label: "Departments",
+            value: options.departments.length,
+            icon: Building2Icon,
+          },
+        ]}
+        actions={
+          canWrite ? (
+            <>
+              <Link
+                href="/employees/import"
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                <UploadIcon />
+                Import
+              </Link>
+              <Link href="/employees/new" className={cn(buttonVariants())}>
+                <PlusIcon />
+                New employee
+              </Link>
+            </>
+          ) : null
+        }
+      />
 
       <EmployeeFilters departments={options.departments} />
 

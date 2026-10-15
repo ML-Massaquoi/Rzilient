@@ -1,6 +1,11 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon, WrenchIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  CoinsIcon,
+  PlusIcon,
+  WrenchIcon,
+} from "lucide-react";
 import { requireUser } from "@/server/auth";
 import {
   getMaintenanceStats,
@@ -9,9 +14,14 @@ import {
 import { MaintenanceFilters } from "@/components/maintenance/maintenance-filters";
 import { MaintenanceTable } from "@/components/maintenance/maintenance-table";
 import { ListPagination } from "@/components/assets/list-pagination";
+import {
+  PageHeader,
+  StatCard,
+  StatGrid,
+  TILE_PALETTE,
+} from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Maintenance",
@@ -21,28 +31,6 @@ type Search = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="px-4 py-3.5">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
-        <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-        {hint ? (
-          <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
 }
 
 export default async function MaintenancePage({
@@ -79,38 +67,55 @@ export default async function MaintenancePage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Maintenance
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Repairs, preventive servicing, inspections and warranty work across
-            the fleet.
-          </p>
-        </div>
-        {canWrite ? (
-          <Button render={<Link href="/maintenance/new" />}>
-            <PlusIcon />
-            New record
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        icon={WrenchIcon}
+        iconClassName="bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        title="Maintenance"
+        subtitle="Repairs, preventive servicing, inspections and warranty work across the fleet."
+        chips={[
+          { label: "Active Work", value: stats.active, icon: WrenchIcon },
+          { label: "Completed", value: stats.completed, icon: CircleCheckIcon },
+        ]}
+        actions={
+          canWrite ? (
+            <Button render={<Link href="/maintenance/new" />}>
+              <PlusIcon />
+              New record
+            </Button>
+          ) : null
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat
+      <StatGrid>
+        <StatCard
+          icon={WrenchIcon}
+          tileClassName={TILE_PALETTE[3]}
           label="Active work"
-          value={String(stats.active)}
-          hint={`${stats.open} open · ${stats.inProgress} in progress`}
+          value={stats.active}
+          caption={`${stats.open} open · ${stats.inProgress} in progress`}
         />
-        <Stat label="Open" value={String(stats.open)} />
-        <Stat label="Completed" value={String(stats.completed)} />
-        <Stat
+        <StatCard
+          icon={PlusIcon}
+          tileClassName={TILE_PALETTE[1]}
+          label="Open"
+          value={stats.open}
+          caption="Awaiting first action"
+        />
+        <StatCard
+          icon={CircleCheckIcon}
+          tileClassName={TILE_PALETTE[4]}
+          label="Completed"
+          value={stats.completed}
+          caption={`${stats.cancelled} cancelled`}
+        />
+        <StatCard
+          icon={CoinsIcon}
+          tileClassName={TILE_PALETTE[2]}
           label="Completed cost"
           value={`SLE ${stats.totalCost.toString()}`}
-          hint={`${stats.cancelled} cancelled`}
+          caption="Across completed records"
         />
-      </div>
+      </StatGrid>
 
       <MaintenanceFilters />
 

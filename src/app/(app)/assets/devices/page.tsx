@@ -1,12 +1,17 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import { LaptopIcon, PlusIcon } from "lucide-react";
+import { LaptopIcon, PlusIcon, SmartphoneIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
-import { getAssetFilterOptions, listAssets } from "@/server/queries/assets";
+import {
+  getAssetFilterOptions,
+  getBrandModelOptions,
+  listAssets,
+} from "@/server/queries/assets";
 import { AssetFilters } from "@/components/assets/asset-filters";
 import { AssetListShell } from "@/components/assets/asset-list-shell";
 import { ListPagination } from "@/components/assets/list-pagination";
 import { SearchMiss } from "@/components/assets/search-miss";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 
@@ -32,53 +37,75 @@ export default async function DevicesPage({
   const status = first(sp.status);
   const category = first(sp.category);
   const condition = first(sp.condition);
+  const brand = first(sp.brand);
+  const model = first(sp.model);
   const pageParam = Number(first(sp.page) ?? "1");
 
-  const [result, categories] = await Promise.all([
+  const [result, categories, facets] = await Promise.all([
     listAssets({
       q,
       status,
       category,
       condition,
+      brand,
+      model,
       kind: "device",
       page: Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1,
     }),
     getAssetFilterOptions("device"),
+    getBrandModelOptions({ kind: "device", category, brand }),
   ]);
 
   const canWrite = user.role !== "VIEWER";
-  const hasFilters = Boolean(q || status || category || condition);
+  const hasFilters = Boolean(
+    q || status || category || condition || brand || model
+  );
 
   const activeParams = new URLSearchParams();
   if (q) activeParams.set("q", q);
   if (status) activeParams.set("status", status);
   if (category) activeParams.set("category", category);
   if (condition) activeParams.set("condition", condition);
+  if (brand) activeParams.set("brand", brand);
+  if (model) activeParams.set("model", model);
   const search = activeParams.toString();
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Devices
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {result.total === 0
-              ? "No devices registered yet"
-              : `${result.total} device${result.total === 1 ? "" : "s"} registered`}
-            {hasFilters ? " matching the current filters" : ""}
-          </p>
-        </div>
-        {canWrite ? (
-          <Button render={<Link href="/assets/new" />}>
-            <PlusIcon />
-            New asset
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        icon={LaptopIcon}
+        iconClassName="bg-sky-500/15 text-sky-600 dark:text-sky-400"
+        title="Devices"
+        subtitle={
+          result.total === 0
+            ? "No devices registered yet"
+            : `${result.total} device${result.total === 1 ? "" : "s"} registered${
+                hasFilters ? " matching the current filters" : ""
+              }`
+        }
+        chips={[
+          { label: "Devices", value: result.total, icon: LaptopIcon },
+          {
+            label: "Categories",
+            value: categories.length,
+            icon: SmartphoneIcon,
+          },
+        ]}
+        actions={
+          canWrite ? (
+            <Button render={<Link href="/assets/new" />}>
+              <PlusIcon />
+              New asset
+            </Button>
+          ) : null
+        }
+      />
 
-      <AssetFilters categories={categories} />
+      <AssetFilters
+        categories={categories}
+        brands={facets.brands.map((b) => b.value)}
+        models={facets.models.map((m) => m.value)}
+      />
 
       {result.items.length > 0 ? (
         <div className="flex flex-col gap-4">

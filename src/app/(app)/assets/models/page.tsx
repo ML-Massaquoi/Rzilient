@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { CpuIcon } from "lucide-react";
+import { CpuIcon, HardDriveIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { db } from "@/lib/db";
 import { ModelDialog, ModelRowActions } from "@/components/assets/model-dialog";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SweetAlert } from "@/components/sweet-alert";
@@ -51,20 +52,20 @@ export default async function DeviceModelsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight sm:text-2xl">
-            <CpuIcon className="size-5" />
-            Device Models
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {models.length} {models.length === 1 ? "model" : "models"} ·{" "}
-            {totalDevices} devices linked · brands like Xerox, HP, Dell stay
-            consistent across the register
-          </p>
-        </div>
-        {canWrite ? <ModelDialog mode="create" categories={categories} /> : null}
-      </div>
+      <PageHeader
+        icon={CpuIcon}
+        iconClassName="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+        title="Device Models"
+        subtitle={`Brands like Xerox, HP and Dell stay consistent across the register.`}
+        chips={[
+          { label: "Models", value: models.length, icon: CpuIcon },
+          { label: "Devices Linked", value: totalDevices, icon: HardDriveIcon },
+          { label: "Categories", value: categories.length, icon: HardDriveIcon },
+        ]}
+        actions={
+          canWrite ? <ModelDialog mode="create" categories={categories} /> : null
+        }
+      />
 
       {just === "created" ? (
         <SweetAlert title="Model added" description="It is now available when registering devices." />
@@ -85,53 +86,59 @@ export default async function DeviceModelsPage({
           description="Models are created automatically from brand/model details when you register devices — or add the first one here."
         />
       ) : (
-        <div className="border-border overflow-x-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Devices</TableHead>
-                {canWrite ? <TableHead className="w-28" /> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {models.map((model) => (
-                <TableRow key={model.id}>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      {model.category.name}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium whitespace-nowrap">
-                    {model.brand}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
-                    {model.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-[260px] truncate text-xs">
-                    {model.notes ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {model._count.assets > 0 ? (
-                      <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-xs font-semibold">
-                        {model._count.assets}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
-                  </TableCell>
-                  {canWrite ? (
-                    <TableCell>
-                      <ModelRowActions model={model} categories={categories} />
-                    </TableCell>
-                  ) : null}
+        <div className="bg-card border-border rounded-xl border">
+          <div className="border-border border-t px-2 py-1">
+            <Table className="[&_td]:px-3.5 [&_th]:px-3.5 [&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Category</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Devices</TableHead>
+                  {canWrite ? <TableHead className="w-28" /> : null}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {models.map((model) => (
+                  <TableRow key={model.id} className="group">
+                    <TableCell className="whitespace-nowrap">
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        {model.category.name}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium whitespace-nowrap">
+                      {model.brand}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {model.name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-[260px] truncate text-xs">
+                      {model.notes ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {model._count.assets > 0 ? (
+                        <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 inline-flex h-5 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums">
+                          {model._count.assets}
+                        </span>
+                      ) : (
+                        <span className="bg-muted text-muted-foreground inline-flex h-5 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums">
+                          0
+                        </span>
+                      )}
+                    </TableCell>
+                    {canWrite ? (
+                      <TableCell>
+                        <div className="flex items-center justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                          <ModelRowActions model={model} categories={categories} />
+                        </div>
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

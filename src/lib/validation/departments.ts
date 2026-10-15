@@ -38,6 +38,29 @@ export const deviceModelFormSchema = z.object({
   notes: optionalText(300),
 });
 
+export const departmentFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(60, "Keep the name under 60 characters"),
+  code: optionalText(12),
+  description: optionalText(300),
+});
+
+export const deleteDepartmentFormSchema = z.object({
+  departmentId: z.string().min(1, "Department is required"),
+  moveToDepartmentId: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional()
+  ),
+});
+
+export const bulkDepartmentTransferSchema = z.object({
+  departmentId: z.string().min(1, "Choose a department"),
+  redirectTo: z.string().min(1, "Missing redirect target"),
+});
+
 export function slugifySystemName(name: string): string {
   return name
     .toLowerCase()

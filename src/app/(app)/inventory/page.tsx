@@ -13,92 +13,72 @@ import {
   type WarehouseCard,
 } from "@/server/queries/warehouses";
 import { getInventoryStats } from "@/server/queries/inventory";
+import {
+  PageHeader,
+  StatCard,
+  StatGrid,
+  TILE_PALETTE,
+  tileClassForKey,
+} from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "cn";
 
 export const metadata: Metadata = {
   title: "Warehouses",
 };
 
-function Stat({
-  label,
-  value,
-  hint,
-  href,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  href?: string;
-}) {
-  const content = (
-    <CardContent className="px-4 py-3.5">
-      <p className="text-muted-foreground text-xs font-medium">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-      {hint ? (
-        <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p>
-      ) : null}
-    </CardContent>
-  );
-  return href ? (
-    <a
-      href={href}
-      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Card>{content}</Card>
-    </a>
-  ) : (
-    <Card>{content}</Card>
-  );
-}
-
 function WarehouseTile({ warehouse }: { warehouse: WarehouseCard }) {
+  const tile = tileClassForKey(warehouse.id + warehouse.name);
   return (
     <Link
       href={`/inventory/warehouses/${warehouse.id}`}
-      className="group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group bg-card border-border rounded-xl border outline-none transition-colors hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Card className="transition-colors group-hover:border-foreground/30">
-        <CardContent className="flex flex-col gap-3 px-4 py-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-                <BoxesIcon className="size-4.5" />
+      <div className="flex flex-col gap-3 px-4 py-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                tile
+              )}
+            >
+              <BoxesIcon className="size-4.5" />
+            </span>
+            <span>
+              <span className="block font-medium leading-tight group-hover:underline">
+                {warehouse.name}
               </span>
-              <span>
-                <span className="block font-medium leading-tight group-hover:underline">
-                  {warehouse.name}
+              {warehouse.code ? (
+                <span className="text-muted-foreground font-mono text-xs">
+                  {warehouse.code}
                 </span>
-                {warehouse.code ? (
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {warehouse.code}
-                  </span>
-                ) : null}
-              </span>
-            </div>
-            <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+              ) : null}
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <Badge variant="outline" className="tabular-nums">
-              <PackageIcon className="size-3" />
-              {warehouse.deviceCount} devices
+          <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant="outline" className="tabular-nums">
+            <PackageIcon className="size-3" />
+            {warehouse.deviceCount} devices
+          </Badge>
+          <Badge variant="outline" className="tabular-nums">
+            {warehouse.stockItemCount} stock items
+          </Badge>
+          {warehouse.lowStockCount > 0 ? (
+            <Badge
+              variant="outline"
+              className="bg-status-maintenance/15 text-status-maintenance tabular-nums"
+            >
+              <AlertTriangleIcon className="size-3" />
+              {warehouse.lowStockCount} low
             </Badge>
-            <Badge variant="outline" className="tabular-nums">
-              {warehouse.stockItemCount} stock items
-            </Badge>
-            {warehouse.lowStockCount > 0 ? (
-              <Badge
-                variant="outline"
-                className="bg-status-maintenance/15 text-status-maintenance tabular-nums"
-              >
-                <AlertTriangleIcon className="size-3" />
-                {warehouse.lowStockCount} low
-              </Badge>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+          ) : null}
+        </div>
+      </div>
     </Link>
   );
 }
@@ -118,51 +98,75 @@ export default async function InventoryOverviewPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Warehouses
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Every device and stock item lives in one of three warehouses.
-            Open a warehouse to see what it holds or transfer devices between
-            warehouses.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/inventory/transactions"
-            className="border-border hover:bg-muted inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors"
-          >
-            <HistoryIcon className="size-4" />
-            Stock transactions
-          </Link>
-          <Link
-            href="/inventory/stock"
-            className="border-border hover:bg-muted inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors"
-          >
-            <PackageIcon className="size-4" />
-            All stock items
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        icon={BoxesIcon}
+        iconClassName="bg-teal-500/15 text-teal-600 dark:text-teal-400"
+        title="Warehouses"
+        subtitle="Every device and stock item lives in a warehouse. Open one to see what it holds or transfer devices between warehouses."
+        chips={[
+          {
+            label: "Devices",
+            value: totalDevices,
+            icon: PackageIcon,
+          },
+          {
+            label: "Stock Items",
+            value: stats.totalItems,
+            icon: BoxesIcon,
+          },
+          {
+            label: "Low Stock",
+            value: stats.lowStock,
+            icon: AlertTriangleIcon,
+          },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/inventory/transactions"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <HistoryIcon />
+              Stock transactions
+            </Link>
+            <Link href="/inventory/stock" className={cn(buttonVariants())}>
+              <PackageIcon />
+              All stock items
+            </Link>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-3 gap-3">
-        <Stat
+      <StatGrid cols={3}>
+        <StatCard
+          icon={PackageIcon}
+          tileClassName={TILE_PALETTE[0]}
           label="Devices in warehouses"
-          value={String(totalDevices)}
-          hint={`${warehouses.length} warehouses`}
+          value={totalDevices}
+          caption={`${warehouses.length} warehouses`}
         />
-        <Stat label="Stock items" value={String(stats.totalItems)} />
-        <Stat
-          label="Low stock"
-          value={String(stats.lowStock)}
-          hint={
-            stats.lowStock > 0 ? "Below configured minimum" : "All healthy"
-          }
-          href={stats.lowStock > 0 ? "/inventory/stock?low=1" : undefined}
+        <StatCard
+          icon={BoxesIcon}
+          tileClassName={TILE_PALETTE[1]}
+          label="Stock items"
+          value={stats.totalItems}
+          caption="Across all warehouses"
         />
-      </div>
+        <Link
+          href={stats.lowStock > 0 ? "/inventory/stock?low=1" : "/inventory/stock"}
+          className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <StatCard
+            icon={AlertTriangleIcon}
+            tileClassName={TILE_PALETTE[3]}
+            label="Low stock"
+            value={stats.lowStock}
+            caption={
+              stats.lowStock > 0 ? "Below configured minimum" : "All healthy"
+            }
+          />
+        </Link>
+      </StatGrid>
 
       {warehouses.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

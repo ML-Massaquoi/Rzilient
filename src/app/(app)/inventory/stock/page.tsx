@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AlertTriangleIcon, PackageIcon, PackageOpenIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import {
@@ -12,9 +13,14 @@ import { StockFilters } from "@/components/inventory/stock-filters";
 import { StockTable } from "@/components/inventory/stock-table";
 import { ItemDialog } from "@/components/inventory/item-dialog";
 import { ListPagination } from "@/components/assets/list-pagination";
+import {
+  PageHeader,
+  StatCard,
+  StatGrid,
+  TILE_PALETTE,
+} from "@/components/layout/page-header";
 import { SweetAlert } from "@/components/sweet-alert";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Inventory Stock",
@@ -24,38 +30,6 @@ type Search = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  href,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  href?: string;
-}) {
-  const content = (
-    <CardContent className="px-4 py-3.5">
-      <p className="text-muted-foreground text-xs font-medium">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-      {hint ? (
-        <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p>
-      ) : null}
-    </CardContent>
-  );
-  return href ? (
-    <a
-      href={href}
-      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Card>{content}</Card>
-    </a>
-  ) : (
-    <Card>{content}</Card>
-  );
 }
 
 export default async function InventoryPage({
@@ -115,12 +89,12 @@ export default async function InventoryPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            All stock items
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+      <PageHeader
+        icon={PackageIcon}
+        iconClassName="bg-violet-500/15 text-violet-600 dark:text-violet-400"
+        title="All stock items"
+        subtitle={
+          <>
             Quantity-based items like cables, connectors and peripherals. Every
             quantity change is recorded as a stock transaction.{" "}
             <a
@@ -130,25 +104,56 @@ export default async function InventoryPage({
               View warehouses
             </a>
             .
-          </p>
-        </div>
-        {canWrite ? <ItemDialog mode="create" categories={categories} locations={locations} /> : null}
-      </div>
+          </>
+        }
+        chips={[
+          { label: "Stock Items", value: stats.totalItems, icon: PackageIcon },
+          { label: "Units On Hand", value: stats.totalUnits, icon: PackageOpenIcon },
+          { label: "Low Stock", value: stats.lowStock, icon: AlertTriangleIcon },
+        ]}
+        actions={
+          canWrite ? (
+            <ItemDialog
+              mode="create"
+              categories={categories}
+              locations={locations}
+            />
+          ) : null
+        }
+      />
 
       {success ? (
         <SweetAlert title={success.title} description={success.description} />
       ) : null}
 
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Stock items" value={String(stats.totalItems)} />
-        <Stat label="Units on hand" value={String(stats.totalUnits)} />
-        <Stat
-          label="Low stock"
-          value={String(stats.lowStock)}
-          hint={stats.lowStock > 0 ? "Below configured minimum" : "All healthy"}
-          href={stats.lowStock > 0 ? "/inventory/stock?low=1" : undefined}
+      <StatGrid cols={3}>
+        <StatCard
+          icon={PackageIcon}
+          tileClassName={TILE_PALETTE[2]}
+          label="Stock items"
+          value={stats.totalItems}
+          caption="Tracked in inventory"
         />
-      </div>
+        <StatCard
+          icon={PackageOpenIcon}
+          tileClassName={TILE_PALETTE[0]}
+          label="Units on hand"
+          value={stats.totalUnits}
+          caption="Total quantity across items"
+        />
+        <Link
+          href={stats.lowStock > 0 ? "/inventory/stock?low=1" : "/inventory/stock"}
+          className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <StatCard
+            icon={AlertTriangleIcon}
+            tileClassName={TILE_PALETTE[3]}
+            label="Low stock"
+            value={stats.lowStock}
+            caption={stats.lowStock > 0 ? "Below configured minimum" : "All healthy"}
+          />
+        </Link>
+      </StatGrid>
 
       <StockFilters categories={categories} />
 

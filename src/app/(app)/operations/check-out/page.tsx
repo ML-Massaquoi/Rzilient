@@ -3,6 +3,7 @@ import { ClipboardCheckIcon } from "lucide-react";
 import { requireRole } from "@/server/auth";
 import { getCheckoutAsset } from "@/server/queries/custody";
 import { CheckoutWizard } from "@/components/operations/checkout-wizard";
+import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const metadata: Metadata = {
@@ -24,15 +25,12 @@ export default async function CheckOutPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Check Out
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Assign an asset to an employee — condition, accessories and expected
-          return are captured in one focused flow.
-        </p>
-      </div>
+      <PageHeader
+        icon={ClipboardCheckIcon}
+        iconClassName="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+        title="Check Out"
+        subtitle="Assign an asset to an employee — condition, accessories and expected return are captured in one focused flow."
+      />
 
       <div className="text-primary flex items-center gap-2 text-sm font-medium">
         <ClipboardCheckIcon className="size-4" />

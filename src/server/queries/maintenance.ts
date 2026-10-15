@@ -32,7 +32,19 @@ const RECORD_SELECT = {
   completedAt: true,
   createdAt: true,
   asset: {
-    select: { id: true, assetTag: true, name: true, status: true },
+    select: {
+      id: true,
+      assetTag: true,
+      name: true,
+      status: true,
+      brand: true,
+      model: true,
+      serialNumber: true,
+    },
+  },
+  attachments: {
+    orderBy: { createdAt: "desc" as const },
+    select: { id: true, kind: true, filename: true, createdAt: true },
   },
   reportedBy: { select: { name: true } },
 } satisfies Prisma.MaintenanceRecordSelect;

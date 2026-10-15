@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from "next";
-import { ActivityIcon, CircleDotIcon } from "lucide-react";
+import { ActivityIcon, CircleDotIcon, ScrollTextIcon } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import {
   getActivityFilterOptions,
@@ -7,6 +7,7 @@ import {
 } from "@/server/queries/activity";
 import { ActivityFilters } from "@/components/activity/activity-filters";
 import { ListPagination } from "@/components/assets/list-pagination";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/datetime";
@@ -77,15 +78,20 @@ export default async function ActivityPage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Activity
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Application audit trail — who did what, when, and to which record.
-          Audit entries are never editable.
-        </p>
-      </div>
+      <PageHeader
+        icon={ScrollTextIcon}
+        iconClassName="bg-rose-500/15 text-rose-600 dark:text-rose-400"
+        title="Activity"
+        subtitle="Application audit trail — who did what, when, and to which record. Audit entries are never editable."
+        chips={[
+          { label: "Entries", value: result.total, icon: ActivityIcon },
+          {
+            label: "Action Types",
+            value: options.actions.length,
+            icon: CircleDotIcon,
+          },
+        ]}
+      />
 
       <ActivityFilters actions={options.actions} users={options.users} />
 

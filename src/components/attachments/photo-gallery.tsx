@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useActionState,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import {
 import { motion } from "motion/react";
 import {
   CameraIcon,
+  FileTextIcon,
   FolderUpIcon,
   Loader2Icon,
   Trash2Icon,
@@ -23,26 +25,51 @@ import {
   type PhotoFormState,
 } from "@/server/actions/attachments";
 
+export type AttachmentEntity = "asset" | "employee" | "maintenance";
+
 type GalleryPhoto = {
   id: string;
   filename: string;
+  kind?: string | null;
 };
+
+const PHOTO_KINDS = new Set(["ASSET_PHOTO", "EMPLOYEE_PHOTO", "DAMAGE_PHOTO"]);
+
+function isDocument(photo: GalleryPhoto): boolean {
+  if (photo.kind && !PHOTO_KINDS.has(photo.kind)) return true;
+  return /\.pdf$/i.test(photo.filename);
+}
 
 const emptyState: PhotoFormState = { ok: false };
 
-const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif";
+const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif,application/pdf";
+
+const DOC_KIND_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Auto (photo or document)" },
+  { value: "PURCHASE_DOCUMENT", label: "Purchase document" },
+  { value: "WARRANTY_DOCUMENT", label: "Warranty document" },
+  { value: "INVOICE", label: "Invoice" },
+  { value: "MAINTENANCE_REPORT", label: "Maintenance report" },
+  { value: "OTHER", label: "Other document" },
+];
 
 const pickButtonClass =
   "inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring";
 
-function UploadForm({
+export function UploadForm({
   entity,
   entityId,
   returnUrl,
+  showDocKind,
+  noRedirect,
+  onUploaded,
 }: {
-  entity: "asset" | "employee";
+  entity: AttachmentEntity;
   entityId: string;
   returnUrl: string;
+  showDocKind?: boolean;
+  noRedirect?: boolean;
+  onUploaded?: () => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [state, formAction, pending] = useActionState(
@@ -50,6 +77,18 @@ function UploadForm({
     emptyState
   );
   const formRef = useRef<HTMLFormElement | null>(null);
+  const seenAttempt = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (
+      state.ok &&
+      state.attempt !== undefined &&
+      state.attempt !== seenAttempt.current
+    ) {
+      seenAttempt.current = state.attempt;
+      onUploaded?.();
+    }
+  }, [state, onUploaded]);
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
@@ -77,6 +116,9 @@ function UploadForm({
       <input type="hidden" name="entity" value={entity} />
       <input type="hidden" name="entityId" value={entityId} />
       <input type="hidden" name="returnUrl" value={returnUrl} />
+      {noRedirect ? (
+        <input type="hidden" name="noRedirect" value="1" />
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <CameraCaptureButton
@@ -122,6 +164,23 @@ function UploadForm({
         </Button>
       </div>
 
+      {showDocKind ? (
+        <label className="flex w-fit items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Save as</span>
+          <select
+            name="docKind"
+            defaultValue=""
+            className="border-input bg-background h-8 rounded-md border px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {DOC_KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
       {files.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {files.map((file, index) => (
@@ -149,8 +208,8 @@ function UploadForm({
 
       <p className="text-muted-foreground text-xs">
         Snap with the live camera, use the device camera app, or pick files —
-        whichever works. Multiple photos allowed (up to 10 · JPG, PNG, WebP or
-        GIF · max 5 MB each).
+        including scanned papers (up to 10 · JPG, PNG, WebP, GIF or PDF · max 5
+        MB each).
       </p>
 
       {state.error ? (
@@ -167,7 +226,7 @@ export function PhotoCaptureButton({
   entityId,
   returnUrl,
 }: {
-  entity: "asset" | "employee";
+  entity: AttachmentEntity;
   entityId: string;
   returnUrl: string;
 }) {
@@ -202,6 +261,7 @@ function PhotoItem({
   pending: boolean;
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
+  const document = isDocument(photo);
 
   return (
     <motion.div
@@ -214,16 +274,25 @@ function PhotoItem({
         href={`/api/files/${photo.id}`}
         target="_blank"
         rel="noreferrer"
-        className="block size-full"
+        className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center"
         title={photo.filename}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/api/files/${photo.id}`}
-          alt={photo.filename}
-          loading="lazy"
-          className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
-        />
+        {document ? (
+          <>
+            <FileTextIcon className="text-primary size-7" />
+            <span className="text-muted-foreground line-clamp-2 text-xs leading-tight break-all">
+              {photo.filename}
+            </span>
+          </>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/files/${photo.id}`}
+            alt={photo.filename}
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
+          />
+        )}
       </a>
       {canWrite ? (
         <>
@@ -232,9 +301,9 @@ function PhotoItem({
             <input type="hidden" name="returnUrl" value={returnUrl} />
           </form>
           <ConfirmDialog
-            title="Remove this photo?"
+            title="Remove this file?"
             description={`${photo.filename} will be permanently deleted. This cannot be undone.`}
-            confirmLabel="Remove photo"
+            confirmLabel="Remove file"
             destructive
             onConfirm={() => {
               formRef.current?.requestSubmit();
@@ -245,7 +314,7 @@ function PhotoItem({
                 type="button"
                 {...trigger}
                 disabled={pending}
-                title="Remove photo"
+                title="Remove file"
                 className="bg-background/90 hover:bg-background text-destructive absolute top-1.5 right-1.5 rounded-md border p-1.5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Trash2Icon className="size-3.5" />
@@ -265,13 +334,19 @@ export function PhotoGallery({
   canWrite,
   returnUrl,
   subject,
+  showDocKind,
+  noRedirect,
+  onUploaded,
 }: {
-  entity: "asset" | "employee";
+  entity: AttachmentEntity;
   entityId: string;
   photos: GalleryPhoto[];
   canWrite: boolean;
   returnUrl: string;
   subject: string;
+  showDocKind?: boolean;
+  noRedirect?: boolean;
+  onUploaded?: () => void;
 }) {
   const [deleteState, deleteFormAction, deletePending] = useActionState(
     deleteAttachmentAction,
@@ -296,12 +371,12 @@ export function PhotoGallery({
         </div>
       ) : (
         <div className="border-border flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-4 py-8 text-center">
-          <CameraIcon className="text-muted-foreground size-6" />
-          <p className="text-sm font-medium">No photos yet</p>
+          <FileTextIcon className="text-muted-foreground size-6" />
+          <p className="text-sm font-medium">No files yet</p>
           <p className="text-muted-foreground max-w-sm text-xs">
             {canWrite
-              ? `Snap a photo with the camera or upload files — add as many photos of this ${subject} as you like.`
-              : `No photos have been uploaded for this ${subject} yet.`}
+              ? `Add photos or scanned papers (PDF) for this ${subject} — purchase docs, warranty sheets, reports.`
+              : `No files have been uploaded for this ${subject} yet.`}
           </p>
         </div>
       )}
@@ -317,6 +392,9 @@ export function PhotoGallery({
           entity={entity}
           entityId={entityId}
           returnUrl={returnUrl}
+          showDocKind={showDocKind}
+          noRedirect={noRedirect}
+          onUploaded={onUploaded}
         />
       ) : null}
     </div>

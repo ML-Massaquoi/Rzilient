@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  BarChart3Icon,
   DownloadIcon,
   FileSpreadsheetIcon,
   FileTextIcon,
@@ -22,6 +23,7 @@ import {
 import { ReportFilters } from "@/components/reports/report-filters";
 import { PrintButton } from "@/components/reports/print-button";
 import { ReportSummary } from "@/components/reports/report-summary";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "cn";
@@ -91,12 +93,24 @@ export default async function ReportsPage({
       </div>
 
       <div className="print:hidden">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Reports
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Executive KPIs, live charts and exportable detail tables.
-        </p>
+        <PageHeader
+          icon={BarChart3Icon}
+          iconClassName="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+          title="Reports"
+          subtitle="Executive KPIs, live charts and exportable detail tables."
+          chips={[
+            {
+              label: "Report Types",
+              value: REPORT_TYPES.length,
+              icon: FileTextIcon,
+            },
+            {
+              label: "Departments",
+              value: departments.departments.length,
+              icon: BarChart3Icon,
+            },
+          ]}
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 print:hidden">

@@ -15,6 +15,8 @@ export type AssetListParams = {
   status?: string;
   category?: string;
   condition?: string;
+  brand?: string;
+  model?: string;
   kind?: "device" | "accessory";
   page?: number;
 };
@@ -68,6 +70,65 @@ export async function getAssetFilterOptions(kind?: "device" | "accessory") {
   );
 }
 
+/** Distinct brands/models within a scope, for the filter dropdowns. */
+export async function getBrandModelOptions(params: {
+  kind?: "device" | "accessory";
+  category?: string;
+  brand?: string;
+}): Promise<{
+  brands: { value: string; count: number }[];
+  models: { value: string; count: number }[];
+}> {
+  const scope: Prisma.AssetWhereInput = { archivedAt: null };
+  if (params.kind === "accessory") {
+    scope.category = { slug: { in: ACCESSORY_CATEGORY_SLUGS } };
+  } else if (params.kind === "device") {
+    scope.category = { slug: { notIn: ACCESSORY_CATEGORY_SLUGS } };
+  }
+  if (params.category) {
+    const category = await db.assetCategory.findUnique({
+      where: { slug: params.category },
+      select: { id: true },
+    });
+    scope.categoryId = category?.id ?? "__no_such_category__";
+  }
+
+  // Brands ignore the active brand filter so every option stays selectable;
+  // models are scoped by it (cascading category → brand → model).
+  const [brandGroups, modelGroups] = await Promise.all([
+    db.asset.groupBy({
+      by: ["brand"],
+      where: { ...scope, brand: { not: null } },
+      _count: { _all: true },
+    }),
+    db.asset.groupBy({
+      by: ["model"],
+      where: {
+        ...scope,
+        model: { not: null },
+        ...(params.brand
+          ? { brand: { equals: params.brand, mode: "insensitive" as const } }
+          : {}),
+      },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const byCountDesc = (
+    a: { value: string; count: number },
+    b: { value: string; count: number }
+  ) => b.count - a.count || a.value.localeCompare(b.value);
+
+  return {
+    brands: brandGroups
+      .map((g) => ({ value: g.brand as string, count: g._count._all }))
+      .sort(byCountDesc),
+    models: modelGroups
+      .map((g) => ({ value: g.model as string, count: g._count._all }))
+      .sort(byCountDesc),
+  };
+}
+
 function isValidEnum<T extends Record<string, string>>(
   values: T,
   value: string | undefined
@@ -84,6 +145,18 @@ export async function listAssets(params: AssetListParams) {
   }
   if (isValidEnum(AssetCondition, params.condition)) {
     where.condition = params.condition;
+  }
+  if (params.brand?.trim()) {
+    where.brand = {
+      equals: params.brand.trim(),
+      mode: "insensitive",
+    };
+  }
+  if (params.model?.trim()) {
+    where.model = {
+      equals: params.model.trim(),
+      mode: "insensitive",
+    };
   }
   if (params.kind === "accessory") {
     where.category = { slug: { in: ACCESSORY_CATEGORY_SLUGS } };
@@ -171,7 +244,13 @@ export function getAssetDetail(id: string) {
       maintenanceRecords: {
         orderBy: { createdAt: "desc" },
         take: 50,
-        include: { reportedBy: { select: { name: true } } },
+        include: {
+          reportedBy: { select: { name: true } },
+          attachments: {
+            orderBy: { createdAt: "desc" },
+            select: { id: true, kind: true, filename: true, createdAt: true },
+          },
+        },
       },
       parent: {
         select: {

@@ -3,6 +3,7 @@ import {
   ArrowRightLeftIcon,
   BoxesIcon,
   CircleCheckIcon,
+  LayoutDashboardIcon,
   WrenchIcon,
 } from "lucide-react";
 import { requireUser } from "@/server/auth";
@@ -17,6 +18,7 @@ import { AttentionSection } from "@/components/dashboard/attention-card";
 import { DistributionList } from "@/components/dashboard/distribution-list";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { StatusBadge } from "@/components/assets/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Card,
   CardContent,
@@ -38,15 +40,33 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <section>
-        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          {greetingForHour(hourInAppTimezone(today))}, {firstName}
-        </h2>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Current picture of IT assets at Freetown International Airport ·{" "}
-          {formatDate(today)}
-        </p>
-      </section>
+      <PageHeader
+        icon={LayoutDashboardIcon}
+        title={`${greetingForHour(hourInAppTimezone(today))}, ${firstName}`}
+        subtitle={`Current picture of IT assets at Freetown International Airport · ${formatDate(today)}`}
+        chips={[
+          {
+            label: "Total Assets",
+            value: stats.totals.total,
+            icon: BoxesIcon,
+          },
+          {
+            label: "Checked Out",
+            value: stats.totals.checkedOut,
+            icon: ArrowRightLeftIcon,
+          },
+          {
+            label: "Available",
+            value: stats.totals.available,
+            icon: CircleCheckIcon,
+          },
+          {
+            label: "In Maintenance",
+            value: stats.totals.maintenance,
+            icon: WrenchIcon,
+          },
+        ]}
+      />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

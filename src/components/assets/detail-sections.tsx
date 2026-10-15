@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MaintenanceStatusBadge } from "@/components/maintenance/status-badge";
+import { MaintenanceDocuments } from "@/components/attachments/maintenance-documents";
 import { RecordActions } from "@/components/maintenance/record-actions";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { formatDate, formatDateTime, daysUntil, isPast } from "@/lib/datetime";
@@ -360,11 +361,18 @@ export function AssetMaintenance({
   records,
   assetId,
   canWrite,
+  assetMeta,
 }: {
   records: AssetDetail["maintenanceRecords"];
   assetId: string;
   canWrite: boolean;
+  assetMeta?: {
+    brand: string | null;
+    model: string | null;
+    serialNumber: string | null;
+  } | null;
 }) {
+  const returnUrl = `/assets/${assetId}`;
   const newRecordButton = canWrite ? (
     <Button
       variant="outline"
@@ -425,6 +433,15 @@ export function AssetMaintenance({
               ) : null}
             </div>
             <div className="flex items-center gap-2">
+              <MaintenanceDocuments
+                recordId={record.id}
+                recordTitle={record.title}
+                assetMeta={assetMeta}
+                documents={record.attachments}
+                canWrite={canWrite}
+                returnUrl={returnUrl}
+                triggerOnly
+              />
               {record.cost != null ? (
                 <span className="text-muted-foreground text-xs">
                   SLE {record.cost.toString()}

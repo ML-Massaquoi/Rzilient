@@ -117,6 +117,37 @@ export type EmployeeDetail = NonNullable<
   Awaited<ReturnType<typeof getEmployeeDetail>>
 >;
 
+export function listDepartmentOptions() {
+  return db.department.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+export type DepartmentFilterKey = "all" | "employees" | "devices" | "empty";
+
+type DepartmentCountFields = {
+  employeeCount: number;
+  allEmployeeCount: number;
+  checkedOutCount: number;
+};
+
+export function applyDepartmentFilter<T extends DepartmentCountFields>(
+  departments: T[],
+  filter?: string
+): T[] {
+  switch (filter) {
+    case "employees":
+      return departments.filter((d) => d.employeeCount > 0);
+    case "devices":
+      return departments.filter((d) => d.checkedOutCount > 0);
+    case "empty":
+      return departments.filter((d) => d.allEmployeeCount === 0);
+    default:
+      return departments;
+  }
+}
+
 export async function getEmployeeFilterOptions() {
   const [departments, count] = await Promise.all([
     db.department.findMany({
@@ -129,12 +160,19 @@ export async function getEmployeeFilterOptions() {
 }
 
 /** Lightweight directory search — powers the employee selector in Phase 4. */
-export function searchEmployees(query: string, limit = 10) {
+export function searchEmployees(
+  query: string,
+  limit = 10,
+  opts?: { excludeDepartmentId?: string }
+) {
   const q = query.trim();
   if (!q) return Promise.resolve([]);
   return db.employee.findMany({
     where: {
       status: "ACTIVE",
+      ...(opts?.excludeDepartmentId
+        ? { departmentId: { not: opts.excludeDepartmentId } }
+        : {}),
       OR: [
         { fullName: { contains: q, mode: "insensitive" } },
         { fiaNumber: { contains: q, mode: "insensitive" } },
@@ -153,7 +191,7 @@ export function searchEmployees(query: string, limit = 10) {
       position: true,
       phone: true,
       email: true,
-      department: { select: { name: true } },
+      department: { select: { id: true, name: true } },
       attachments: {
         where: { kind: "EMPLOYEE_PHOTO" as const },
         take: 1,
@@ -166,8 +204,20 @@ export function searchEmployees(query: string, limit = 10) {
   });
 }
 
-export async function listDepartmentsWithCounts() {
+export async function listDepartmentsWithCounts(params?: { q?: string }) {
+  const q = params?.q?.trim() || undefined;
+  const where: PrismaTypes.DepartmentWhereInput = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { code: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+        ],
+      }
+    : {};
+
   const departments = await db.department.findMany({
+    where,
     orderBy: { name: "asc" },
     include: {
       _count: {
@@ -180,18 +230,29 @@ export async function listDepartmentsWithCounts() {
 
   const departmentIds = departments.map((d) => d.id);
   const checkoutByDepartment = new Map<string, number>();
+  const totalByDepartment = new Map<string, number>();
   if (departmentIds.length > 0) {
-    const checkoutCounts = await db.$queryRaw<
-      { departmentId: string; n: bigint }[]
-    >`
-      SELECT e."departmentId" as "departmentId", COUNT(*) as n
-      FROM "AssetAssignment" a
-      JOIN "Employee" e ON e."id" = a."employeeId"
-      WHERE a."status" = 'ACTIVE' AND e."departmentId" IN (${Prisma.join(departmentIds)})
-      GROUP BY e."departmentId"
-    `;
+    const [checkoutCounts, totals] = await Promise.all([
+      db.$queryRaw<
+        { departmentId: string; n: bigint }[]
+      >`
+        SELECT e."departmentId" as "departmentId", COUNT(*) as n
+        FROM "AssetAssignment" a
+        JOIN "Employee" e ON e."id" = a."employeeId"
+        WHERE a."status" = 'ACTIVE' AND e."departmentId" IN (${Prisma.join(departmentIds)})
+        GROUP BY e."departmentId"
+      `,
+      db.employee.groupBy({
+        by: ["departmentId"],
+        where: { departmentId: { in: departmentIds } },
+        _count: { _all: true },
+      }),
+    ]);
     for (const row of checkoutCounts) {
       checkoutByDepartment.set(row.departmentId, Number(row.n));
+    }
+    for (const row of totals) {
+      totalByDepartment.set(row.departmentId, row._count._all);
     }
   }
 
@@ -202,6 +263,7 @@ export async function listDepartmentsWithCounts() {
       code: department.code,
       description: department.description,
       employeeCount: department._count.employees,
+      allEmployeeCount: totalByDepartment.get(department.id) ?? 0,
       checkedOutCount: checkoutByDepartment.get(department.id) ?? 0,
     })),
   };
