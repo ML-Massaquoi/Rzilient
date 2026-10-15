@@ -63,6 +63,11 @@ skills-lock.json
 /Rinventory/
 /STAFF LIST*
 /Screenshot*
+/Rdo/
+
+# accidental npm installs + local dev logs
+/VHF/
+/dev-*.log
 
 # database transfer files (contain real data — never commit)
 /data-transfer*.json
