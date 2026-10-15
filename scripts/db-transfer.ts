@@ -105,7 +105,10 @@ type AnyDb = {
     update(args: { where: { id: string }; data: { previousAssignmentId: string } }): Promise<unknown>;
   };
   asset: {
-    update(args: { where: { id: string }; data: { activeAssignmentId: string } }): Promise<unknown>;
+    update(args: {
+      where: { id: string };
+      data: { activeAssignmentId?: string; parentId?: string };
+    }): Promise<unknown>;
   };
   assetCount?: never;
   [key: string]: unknown;
